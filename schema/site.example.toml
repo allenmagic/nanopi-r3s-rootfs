@@ -1,0 +1,29 @@
+# router-config/sites/<workspace>-<location>.toml
+# 描述: 某个 workspace 在某个 location 的最终组合
+# 合并优先级: 最高 (覆盖前两层)
+#
+# 这一层应尽量薄: 只放 override 和真正"site-only"的内容
+# 例如 workspace 设备在这个 location 的 IP 分配
+
+[site]
+name      = "home-beijing"
+workspace = "home"
+location  = "beijing"
+
+# ---- workspace 设备在本 location 的 IP 分配 ----
+# _merged.tera 会将这里的 mac → ip 映射并入最终 dhcp-host 列表
+[[site.device_bindings]]
+mac   = "aa:bb:cc:dd:ee:f0"      # my-laptop
+ip    = "192.168.1.20"
+lease = "12h"
+
+[[site.device_bindings]]
+mac   = "aa:bb:cc:dd:ee:f1"      # my-phone
+ip    = "192.168.1.21"
+
+# my-tablet 不在这个 location 用，故不绑定 IP (会被合并时跳过)
+
+# ---- site 级覆盖 (示例) ----
+[site.overrides]
+# 在这个 site 临时改 lease 时间
+# dhcp_lease = "6h"

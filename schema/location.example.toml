@@ -1,0 +1,46 @@
+# router-config/locations/<name>.toml
+# 描述: 某个物理地点的网络环境配置
+# 合并优先级: 中等 (会覆盖 workspace, 会被 site 覆盖)
+
+[location]
+name        = "beijing"
+description = "Home network in Beijing"
+timezone    = "Asia/Shanghai"      # 可覆盖 workspace.preferences.timezone
+
+# ---- 网络拓扑 ----
+[location.network]
+lan_interface   = "eth0"
+lan_address     = "192.168.1.1"
+lan_netmask     = "255.255.255.0"
+lan_cidr        = "192.168.1.0/24"
+dhcp_start      = "192.168.1.100"
+dhcp_end        = "192.168.1.200"
+dhcp_lease      = "24h"
+
+# ---- 主机名 ----
+[location.host]
+hostname = "router-bj"
+domain   = "lan"
+
+# ---- 上游 DNS ----
+[location.dns]
+upstream = [
+    "223.5.5.5",       # AliDNS
+    "119.29.29.29",    # DNSPod
+]
+# 是否启用 DNS 转发模式 (no-resolv + 仅使用上述 upstream)
+no_resolv = true
+
+# ---- 地点专属常驻设备 (不跟人走，只属于这个地点) ----
+[[location.devices]]
+mac      = "11:22:33:44:55:66"
+ip       = "192.168.1.10"
+hostname = "nas"
+tags     = ["infra", "storage"]
+lease    = "infinite"
+
+[[location.devices]]
+mac      = "11:22:33:44:55:67"
+ip       = "192.168.1.11"
+hostname = "printer"
+tags     = ["infra"]

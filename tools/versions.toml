@@ -1,0 +1,11 @@
+# 外部二进制版本固化
+# 由 install.sh / fetch-tera.sh 读取
+#
+# 升级方式: 修改下面的 version 字段
+
+[tera]
+version = "0.5.0"
+repo = "chevdor/tera-cli"
+# release 资产命名模板，{target} 由 fetch-tera.sh 注入
+asset_template = "tera-cli-{target}.tar.gz"
+

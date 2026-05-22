@@ -1,0 +1,31 @@
+# router-config/workspaces/<name>.toml
+# 描述: 跨地点共享的个人/团队配置
+# 合并优先级: 最低 (会被 location / site 覆盖)
+
+[workspace]
+name = "home"
+description = "Personal devices that follow me across locations"
+
+# ---- 个人常驻设备 (跟着人走，不同地点都需要它们) ----
+# 注意: ip 字段在不同 location 可能不同，所以这里只写 MAC + hostname
+# 实际 IP 在 location 或 site 层补全
+[[workspace.devices]]
+mac      = "aa:bb:cc:dd:ee:f0"
+hostname = "my-laptop"
+tags     = ["personal", "trusted"]
+
+[[workspace.devices]]
+mac      = "aa:bb:cc:dd:ee:f1"
+hostname = "my-phone"
+tags     = ["personal", "mobile"]
+
+[[workspace.devices]]
+mac      = "aa:bb:cc:dd:ee:f2"
+hostname = "my-tablet"
+tags     = ["personal", "mobile"]
+
+# ---- 偏好 ----
+[workspace.preferences]
+timezone        = "Asia/Shanghai"
+default_lease   = "12h"
+log_level       = "info"
