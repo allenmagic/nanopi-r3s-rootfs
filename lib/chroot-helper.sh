@@ -67,21 +67,20 @@ chroot_enter() {
             continue
         fi
         case "$vfs" in
-            dev)      src="/dev";  opts="--rbind" ;;
+            dev)      src="/dev";  opts="--bind" ;;
             dev/pts)  src="/dev/pts"; opts="--bind" ;;
             proc)     src="proc"; opts="-t proc" ;;
-            sys)      src="/sys"; opts="--rbind" ;;
-            run)      src="/run"; opts="--rbind" ;;
+            sys)      src="/sys"; opts="--bind" ;;
+            run)      src="/run"; opts="--bind" ;;
         esac
 
         if [ "$opts" = "-t proc" ]; then
             mount -t proc proc "$target"
         else
             mount $opts "$src" "$target"
-            # rbind 的 dev/sys 设为 rslave，避免影响主机
-            case "$vfs" in
-                dev|sys) mount --make-rslave "$target" 2>/dev/null || true ;;
-            esac
+            # 将 bind mount 设为 private，彻底隔离宿主机与 chroot 的挂载传播
+            # 避免 umount 时反向传播导致宿主机 /dev/pts 被意外卸载
+            mount --make-private "$target" 2>/dev/null || true
         fi
         # 记录已挂载点（逆序卸载用，故 prepend）
         printf '%s\n' "$target" | cat - "$state" > "$state.tmp" && mv "$state.tmp" "$state"
@@ -112,16 +111,18 @@ chroot_exit() {
     echo "==> chroot_exit: $rootfs"
     if [ -f "$state" ]; then
         # 状态文件已是逆序（最后挂的在最前），逐行卸载
+        # 优先用 lazy unmount：立即从命名空间分离，内核在后台释放引用，
+        # 避免 umount -R 递归卸载时因挂载传播导致宿主机 /dev/pts 异常
         while IFS= read -r m; do
             [ -z "$m" ] && continue
-            umount -R "$m" 2>/dev/null || umount -l "$m" 2>/dev/null || true
+            umount -l "$m" 2>/dev/null || umount -R "$m" 2>/dev/null || true
         done < "$state"
         rm -f "$state"
     else
         # 兜底：无状态文件时按已知列表逆序卸载
         local vfs
         for vfs in run sys proc dev/pts dev; do
-            umount -R "$rootfs/$vfs" 2>/dev/null || umount -l "$rootfs/$vfs" 2>/dev/null || true
+            umount -l "$rootfs/$vfs" 2>/dev/null || umount -R "$rootfs/$vfs" 2>/dev/null || true
         done
     fi
 

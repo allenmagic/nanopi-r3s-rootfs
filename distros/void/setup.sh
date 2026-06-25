@@ -42,8 +42,14 @@ cat > "${SVC_DIR}/conf" <<EOF
 baud_rate=${SERIAL_BAUD}
 term=linux
 EOF
-ln -sf "/etc/sv/agetty-${SERIAL_DEV}" "/etc/runit/runsvdir/default/agetty-${SERIAL_DEV}"
-[ -d /etc/sv/sshd ] && ln -sf /etc/sv/sshd /etc/runit/runsvdir/default/sshd
+# runit 服务是目录，ln -sf 不会覆盖已有目录，需先移除
+mkdir -p /etc/runit/runsvdir/default
+rm -f "/etc/runit/runsvdir/default/agetty-${SERIAL_DEV}"
+ln -s "/etc/sv/agetty-${SERIAL_DEV}" "/etc/runit/runsvdir/default/agetty-${SERIAL_DEV}"
+if [ -d /etc/sv/sshd ]; then
+    rm -f /etc/runit/runsvdir/default/sshd
+    ln -s /etc/sv/sshd /etc/runit/runsvdir/default/sshd
+fi
 
 rm -rf /var/cache/xbps/* 2>/dev/null || true
 echo "[chroot] setup 完成。"

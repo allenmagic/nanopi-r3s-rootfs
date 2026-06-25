@@ -33,11 +33,14 @@ XBPS_DIR="${WORKDIR}/xbps-static"
 CACHE_DIR="$(readlink -m "${CACHE_DIR}")"
 mkdir -p "${WORKDIR}" "${XBPS_DIR}" "${CACHE_DIR}"
 
-mkdir -p "${WORKDIR}" "${XBPS_DIR}" "${CACHE_DIR}"
-
 # 把 build 顶层目录属主还给调用者（rootfs 内部仍须 root）
 if [ -n "${SUDO_USER:-}" ]; then
-    chown "${SUDO_USER}:${SUDO_USER}" "${BUILD_BASE}" "${CACHE_DIR}" 2>/dev/null || true
+    # CACHE_DIR 默认在 BUILD_BASE 下时只 chown 顶层避免重复
+    if [ "${CACHE_DIR%/*}" = "${BUILD_BASE}" ] || [ "${CACHE_DIR}" = "${BUILD_BASE}" ]; then
+        chown "${SUDO_USER}:${SUDO_USER}" "${BUILD_BASE}" 2>/dev/null || true
+    else
+        chown "${SUDO_USER}:${SUDO_USER}" "${BUILD_BASE}" "${CACHE_DIR}" 2>/dev/null || true
+    fi
 fi
 
 
@@ -105,7 +108,7 @@ echo "[void] base rootfs 构建完成：${ROOTFS}"
 # ---------- 可选：打包（PACK=1） ----------
 if [[ "${PACK}" == "1" ]]; then
     chroot_exit "${ROOTFS}"          # 先卸载，避免打进挂载内容
-    trap - EXIT                      # 清 trap 防重复卸载
+    trap '' EXIT                     # 清 trap 防重复卸载（EXIT 时忽略，因已手动卸载）
     OUTPUT="${OUTPUT:-${ROOTFS%/}-minimal.tar.xz}"
     OUTPUT="$(readlink -m "${OUTPUT}")"
     echo "[void] 6. 调用打包：lib/slim-rootfs.sh"
