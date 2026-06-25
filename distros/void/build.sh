@@ -60,9 +60,29 @@ XBPS_INSTALL="${XBPS_DIR}/usr/bin/xbps-install"
 
 # ---------- 第二步：构建 base-minimal ----------
 echo "[void] 2. 构建 base-minimal → ${ROOTFS} ..."
-mkdir -p "${ROOTFS}"
-yes | env XBPS_ARCH="${ARCH}" "${XBPS_INSTALL}" \
+mkdir -p "${ROOTFS}/var/db/xbps/keys"
+# 预置 Void 官方公钥，避免首次导入交互
+cp -a "${XBPS_DIR}/var/db/xbps/keys/." "${ROOTFS}/var/db/xbps/keys/" 2>/dev/null || true
+
+env XBPS_ARCH="${ARCH}" "${XBPS_INSTALL}" \
     --yes -S -r "${ROOTFS}" -R "${REPO}" base-minimal
+
+
+# ---------- 第三步前：跨架构能力预检 ----------
+HOST_ARCH="$(uname -m)"
+if [ "${HOST_ARCH}" != "aarch64" ] && [ "${HOST_ARCH}" != "arm64" ]; then
+    # 非 aarch64 宿主：必须有 binfmt+qemu 才能 chroot 进 aarch64 rootfs
+    if [ ! -e /proc/sys/fs/binfmt_misc/qemu-aarch64 ]; then
+        echo "错误：宿主架构为 ${HOST_ARCH}，但未注册 aarch64 的 binfmt/qemu。" >&2
+        echo "chroot 进 aarch64 rootfs 将失败。请先执行：" >&2
+        echo "  sudo apt-get install -y qemu-user-static binfmt-support" >&2
+        echo "  docker run --rm --privileged tonistiigi/binfmt --install arm64" >&2
+        echo "或在原生 aarch64 环境（如 GitHub ubuntu-24.04-arm runner）构建。" >&2
+        exit 1
+    fi
+fi
+echo "[void] 跨架构预检通过（宿主 ${HOST_ARCH}）"
+
 
 # ---------- 第三步：chroot（trap 确保卸载） ----------
 echo "[void] 3. 进入 chroot ..."
