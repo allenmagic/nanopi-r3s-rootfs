@@ -1,3 +1,11 @@
 ./tools/bin/*
 ./rendered
 
+# 构建产物
+/build/
+
+# 兜底
+*-rootfs/
+*.tar.xz
+*.tar.gz
+xbps-static*/
