@@ -49,7 +49,7 @@ jobs:
             xz-utils zstd file binutils \
             curl ca-certificates \
             mmdebstrap debootstrap debian-archive-keyring \
-            gpgv
+            gpgv arch-test
 
       - name: Build ${{ matrix.distro }} rootfs
         run: |
