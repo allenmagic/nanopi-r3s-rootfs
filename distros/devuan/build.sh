@@ -76,7 +76,7 @@ command -v mmdebstrap >/dev/null 2>&1 || {
     exit 1
 }
 
-# ---------- keyring：显式指定 → 宿主自带 → build/ 缓存 → 自动下载 ----------
+# ---------- keyring：显式指定 → 宿主自带 → 自动下载（每次强制最新） ----------
 KEYRING="${KEYRING:-}"
 KEYRING_CACHE="${BUILD_BASE}/keyring/devuan-archive-keyring.gpg"
 
@@ -114,9 +114,7 @@ resolve_keyring() {
              /usr/share/keyrings/devuan-keyring.gpg; do
         [ -f "$c" ] && { KEYRING="$c"; return 0; }
     done
-    # 3) build/ 缓存命中（之前下过，复用免重下）
-    [ -s "${KEYRING_CACHE}" ] && { KEYRING="${KEYRING_CACHE}"; return 0; }
-    # 4) 自动下载到 build/ 缓存
+    # 3) 自动下载最新 keyring（不缓存，避免 keyring 过期导致签名验证失败）
     fetch_keyring && { KEYRING="${KEYRING_CACHE}"; return 0; }
     return 1
 }
