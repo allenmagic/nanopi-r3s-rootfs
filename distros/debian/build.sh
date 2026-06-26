@@ -1,39 +1,35 @@
 #!/usr/bin/env bash
 #
-# distros/devuan/build.sh —— 构建 Devuan aarch64(arm64) 最小 rootfs 并执行 chroot 内 setup
-# 用 mmdebstrap 构建 minbase（默认 sysvinit，不折腾换 init）
-# 产物落在仓库内 build/devuan/（被 .gitignore 排除），仿 Armbian output/ 模式
+# distros/debian/build.sh —— 构建 Debian aarch64(arm64) 最小 rootfs 并执行 chroot 内 setup
+# 用 mmdebstrap 构建 minbase（systemd 作为 init）
+# 产物落在仓库内 build/debian/（被 .gitignore 排除）
 #
 set -euo pipefail
 
-SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"     # → distros/devuan
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"     # → distros/debian
 REPO_ROOT="$(readlink -f "${SCRIPT_DIR}/../..")"  # → 仓库根
 source "${REPO_ROOT}/lib/chroot-helper.sh"
 
 # ---------- 可配置参数 ----------
-DISTRO="devuan"
+DISTRO="debian"
 BUILD_ROOT="${BUILD_ROOT:-${REPO_ROOT}/build}"               # build 总根
-BUILD_BASE="${BUILD_BASE:-${BUILD_ROOT}/${DISTRO}}"          # build/devuan
-ROOTFS="${ROOTFS:-${BUILD_BASE}/devuan-rootfs}"
+BUILD_BASE="${BUILD_BASE:-${BUILD_ROOT}/${DISTRO}}"          # build/debian
+ROOTFS="${ROOTFS:-${BUILD_BASE}/debian-rootfs}"
 CACHE_DIR="${CACHE_DIR:-${BUILD_BASE}/cache}"                # apt 缓存（复用免重下）
-ARCH="${ARCH:-arm64}"                                        # Debian/Devuan 架构名
-SUITE="${SUITE:-stable}"                                   # Devuan 最新稳定版
+ARCH="${ARCH:-arm64}"                                        # Debian 架构名
+SUITE="${SUITE:-stable}"                                 # Debian 最新稳定版
 COMPONENTS="${COMPONENTS:-main}"
 ROOT_PASSWORD="${ROOT_PASSWORD:-root}"                       # CI Secret，未设默认 root
-HOSTNAME_VAL="${HOSTNAME_VAL:-nanopi-r3s-devuan}"
+HOSTNAME_VAL="${HOSTNAME_VAL:-nanopi-r3s-debian}"
 SETUP_SCRIPT="${SCRIPT_DIR}/setup.sh"
 PACK="${PACK:-0}"                                            # 1=构建后顺带打包
-# Devuan keyring：mmdebstrap 验证仓库签名所需
-KEYRING="${KEYRING:-/usr/share/keyrings/devuan-archive-keyring.gpg}"
 
-# ---------- 镜像源解析：REPO 和 KEYRING_POOL ----------
-# 镜像别名映射，别名 → mirror base URL。所有镜像遵循同一结构：
-#   ${base}/merged               — apt 仓库
-#   ${base}/devuan/pool/...      — keyring .deb 下载路径
+# ---------- 镜像源解析：REPO ----------
+# 镜像别名映射，别名 → mirror URL。Debian 镜像结构无 /merged 后缀。
 declare -A MIRRORS
-MIRRORS["default"]="http://deb.devuan.org"
-MIRRORS["tuna"]="https://mirrors.tuna.tsinghua.edu.cn/devuan"
-MIRRORS["tsinghua"]="https://mirrors.tuna.tsinghua.edu.cn/devuan"
+MIRRORS["default"]="http://deb.debian.org/debian"
+MIRRORS["tuna"]="https://mirrors.tuna.tsinghua.edu.cn/debian"
+MIRRORS["tsinghua"]="https://mirrors.tuna.tsinghua.edu.cn/debian"
 # ↑ 添加新镜像时在这里加一条
 
 # REPO 支持三种形式：
@@ -42,62 +38,36 @@ MIRRORS["tsinghua"]="https://mirrors.tuna.tsinghua.edu.cn/devuan"
 #   3. 传完整 URL（含 ://）→ 直接使用
 _REPO_IN="${REPO:-default}"
 if [[ "${_REPO_IN}" =~ ^[a-z]+:// ]]; then
-    _REPO_BASE="${_REPO_IN%/merged}"                       # 去掉末尾 /merged
-    _REPO_BASE="${_REPO_BASE%/}"                           # 去掉可能的尾部斜杠
     REPO="${_REPO_IN}"
 else
-    _REPO_BASE="${MIRRORS[${_REPO_IN}]:-${MIRRORS[default]}}"
-    REPO="${_REPO_BASE}/merged"
+    REPO="${MIRRORS[${_REPO_IN}]:-${MIRRORS[default]}}"
 fi
-KEYRING_POOL="${KEYRING_POOL:-${_REPO_BASE}/devuan/pool/main/d/devuan-keyring/}"
-unset _REPO_IN _REPO_BASE
+unset _REPO_IN
 
-# ---------- 路径规范化（readlink -m：允许路径尚不存在） ----------
-BUILD_ROOT="$(readlink -m "${BUILD_ROOT}")"
-BUILD_BASE="$(readlink -m "${BUILD_BASE}")"
-ROOTFS="$(readlink -m "${ROOTFS}")"
-CACHE_DIR="$(readlink -m "${CACHE_DIR}")"
-WORKDIR="$(dirname "${ROOTFS}")"
-
-# ---------- 提权前：以普通用户创建 build 目录树（属主天然归调用者，无需 chown） ----------
-if [ "${EUID}" -ne 0 ]; then
-    mkdir -p "${BUILD_BASE}" "${CACHE_DIR}" "${WORKDIR}"
-fi
-
-# ---------- 权限：非 root 自动 sudo 重入 ----------
-# mmdebstrap 支持非 root，但需 chroot 跑 setup，故统一走 root
-[ "${EUID}" -eq 0 ] || exec sudo -E "$0" "$@"
-
-[ -f "${SETUP_SCRIPT}" ] || { echo "缺少 ${SETUP_SCRIPT}" >&2; exit 1; }
-
-# ---------- 依赖检查：mmdebstrap ----------
-command -v mmdebstrap >/dev/null 2>&1 || {
-    echo "错误：未找到 mmdebstrap。请先安装：sudo apt-get install -y mmdebstrap" >&2
-    exit 1
-}
-
-# ---------- keyring：显式指定 → 宿主自带 → build/ 缓存 → 自动下载 ----------
+# ---------- keyring ----------
+# Debian archive keyring：从 mirror pool 自动下载，也可手动指定
 KEYRING="${KEYRING:-}"
-KEYRING_CACHE="${BUILD_BASE}/keyring/devuan-archive-keyring.gpg"
+KEYRING_CACHE="${BUILD_BASE}/keyring/debian-archive-keyring.gpg"
+# keyring 下载路径，从 REPO 推导
+KEYRING_POOL="${KEYRING_POOL:-${REPO%/debian}/debian/pool/main/d/debian-archive-keyring/}"
 
 fetch_keyring() {
-    # 移植自 CI：从 Devuan pool 下载 keyring .deb 并解包
-    echo "[devuan] 下载 Devuan keyring → ${KEYRING_CACHE} ..."
+    echo "[debian] 下载 Debian keyring → ${KEYRING_CACHE} ..."
     mkdir -p "$(dirname "${KEYRING_CACHE}")"
     local POOL="${KEYRING_POOL}"
     local tmp; tmp="$(mktemp -d)"
     wget -qO "${tmp}/pool.html" "${POOL}" || {
         echo "错误：pool 目录拉取失败：${POOL}" >&2; rm -rf "${tmp}"; return 1; }
     local DEB_NAME
-    DEB_NAME="$(grep -oE 'devuan-keyring_[0-9.]+_all\.deb' "${tmp}/pool.html" \
+    DEB_NAME="$(grep -oE 'debian-archive-keyring_[0-9.]+_all\.deb' "${tmp}/pool.html" \
                 | sort -uV | tail -n1)"
     [ -n "${DEB_NAME}" ] || {
         echo "错误：未从 pool 解析到 .deb 包名" >&2; rm -rf "${tmp}"; return 1; }
-    echo "[devuan]   找到：${DEB_NAME}"
+    echo "[debian]   找到：${DEB_NAME}"
     wget -qO "${tmp}/k.deb" "${POOL}${DEB_NAME}" || { rm -rf "${tmp}"; return 1; }
     dpkg-deb -x "${tmp}/k.deb" "${tmp}/kr"
     local SRC
-    SRC="$(find "${tmp}/kr" -path '*keyrings/devuan-archive-keyring.gpg' | head -n1)"
+    SRC="$(find "${tmp}/kr" -path '*debian-archive-keyring.gpg' | head -n1)"
     [ -n "${SRC}" ] || {
         echo "错误：deb 内未找到 keyring" >&2; find "${tmp}/kr" -name '*.gpg' >&2
         rm -rf "${tmp}"; return 1; }
@@ -109,12 +79,12 @@ fetch_keyring() {
 resolve_keyring() {
     # 1) 用户显式指定
     [ -n "${KEYRING}" ] && [ -f "${KEYRING}" ] && return 0
-    # 2) 宿主系统已装（Devuan 宿主 / CI 之前装过）
-    for c in /usr/share/keyrings/devuan-archive-keyring.gpg \
-             /usr/share/keyrings/devuan-keyring.gpg; do
+    # 2) 宿主系统已装
+    for c in /usr/share/keyrings/debian-archive-keyring.gpg \
+             /usr/share/keyrings/debian-keyring.gpg; do
         [ -f "$c" ] && { KEYRING="$c"; return 0; }
     done
-    # 3) build/ 缓存命中（之前下过，复用免重下）
+    # 3) build/ 缓存命中
     [ -s "${KEYRING_CACHE}" ] && { KEYRING="${KEYRING_CACHE}"; return 0; }
     # 4) 自动下载到 build/ 缓存
     fetch_keyring && { KEYRING="${KEYRING_CACHE}"; return 0; }
@@ -122,14 +92,35 @@ resolve_keyring() {
 }
 
 if ! resolve_keyring; then
-    echo "错误：无法获取 Devuan keyring。" >&2
-    echo "  可手动指定：KEYRING=/path/to/devuan-archive-keyring.gpg" >&2
+    echo "错误：无法获取 Debian keyring。" >&2
+    echo "  可手动指定：KEYRING=/path/to/debian-archive-keyring.gpg" >&2
     exit 1
 fi
-# 校验存在且非空（沿用你 CI 的护栏）
 [ -s "${KEYRING}" ] || { echo "错误：keyring 未就绪：${KEYRING}" >&2; exit 1; }
-echo "[devuan] keyring 就绪：${KEYRING}"; ls -l "${KEYRING}" || true
+echo "[debian] keyring 就绪：${KEYRING}"; ls -l "${KEYRING}" || true
 
+# ---------- 路径规范化（readlink -m：允许路径尚不存在） ----------
+BUILD_ROOT="$(readlink -m "${BUILD_ROOT}")"
+BUILD_BASE="$(readlink -m "${BUILD_BASE}")"
+ROOTFS="$(readlink -m "${ROOTFS}")"
+CACHE_DIR="$(readlink -m "${CACHE_DIR}")"
+WORKDIR="$(dirname "${ROOTFS}")"
+
+# ---------- 提权前：以普通用户创建 build 目录树 ----------
+if [ "${EUID}" -ne 0 ]; then
+    mkdir -p "${BUILD_BASE}" "${CACHE_DIR}" "${WORKDIR}"
+fi
+
+# ---------- 权限：非 root 自动 sudo 重入 ----------
+[ "${EUID}" -eq 0 ] || exec sudo -E "$0" "$@"
+
+[ -f "${SETUP_SCRIPT}" ] || { echo "缺少 ${SETUP_SCRIPT}" >&2; exit 1; }
+
+# ---------- 依赖检查：mmdebstrap ----------
+command -v mmdebstrap >/dev/null 2>&1 || {
+    echo "错误：未找到 mmdebstrap。请先安装：sudo apt-get install -y mmdebstrap" >&2
+    exit 1
+}
 
 # root 态：补建缓存目录
 mkdir -p "${CACHE_DIR}"
@@ -142,7 +133,7 @@ case "${WORKDIR}" in
         exit 1 ;;
 esac
 
-# ---------- 第二步前：跨架构能力预检（加强版：查 enabled + F flag） ----------
+# ---------- 第二步前：跨架构能力预检 ----------
 HOST_ARCH="$(uname -m)"
 if [ "${HOST_ARCH}" != "aarch64" ] && [ "${HOST_ARCH}" != "arm64" ]; then
     BINFMT=/proc/sys/fs/binfmt_misc/qemu-aarch64
@@ -160,10 +151,10 @@ if [ "${HOST_ARCH}" != "aarch64" ] && [ "${HOST_ARCH}" != "arm64" ]; then
         echo "  docker run --rm --privileged tonistiigi/binfmt --install arm64" >&2
     fi
 fi
-echo "[devuan] 跨架构预检通过（宿主 ${HOST_ARCH}）"
+echo "[debian] 跨架构预检通过（宿主 ${HOST_ARCH}）"
 
-# ---------- 第二步：用 mmdebstrap 构建 minbase（≈ Void base-minimal，默认 sysvinit） ----------
-echo "[devuan] 2. 用 mmdebstrap 构建 minbase → ${ROOTFS} ..."
+# ---------- 第二步：用 mmdebstrap 构建 minbase（systemd 作为 init） ----------
+echo "[debian] 2. 用 mmdebstrap 构建 minbase → ${ROOTFS} ..."
 rm -rf "${ROOTFS}"
 mkdir -p "${ROOTFS}"
 
@@ -172,7 +163,7 @@ mmdebstrap \
     --variant=minbase \
     --components="${COMPONENTS}" \
     --keyring="${KEYRING}" \
-    --include=ca-certificates,devuan-keyring \
+    --include=ca-certificates,systemd-sysv \
     "${SUITE}" \
     "${ROOTFS}" \
     "${REPO}"
@@ -180,12 +171,12 @@ mmdebstrap \
 [ -x "${ROOTFS}/bin/sh" ] || { echo "rootfs 构建异常：缺少 /bin/sh" >&2; exit 1; }
 
 # ---------- 第三步：chroot（trap 确保卸载） ----------
-echo "[devuan] 3. 进入 chroot ..."
+echo "[debian] 3. 进入 chroot ..."
 trap 'chroot_exit "${ROOTFS}"' EXIT
 chroot_enter "${ROOTFS}"
 
 # ---------- 第四+五步：执行 setup ----------
-echo "[devuan] 4+5. 执行 setup（装工具 / 配置）..."
+echo "[debian] 4+5. 执行 setup（装工具 / 配置）..."
 cp -f "${SETUP_SCRIPT}" "${ROOTFS}/setup.sh"
 chmod +x "${ROOTFS}/setup.sh"
 chroot_run "${ROOTFS}" /usr/bin/env \
@@ -198,7 +189,7 @@ chroot_run "${ROOTFS}" /usr/bin/env \
     /bin/sh /setup.sh
 rm -f "${ROOTFS}/setup.sh"
 
-echo "[devuan] base rootfs 构建完成：${ROOTFS}"
+echo "[debian] base rootfs 构建完成：${ROOTFS}"
 
 # ---------- 可选：打包（PACK=1） ----------
 if [[ "${PACK}" == "1" ]]; then
@@ -206,6 +197,6 @@ if [[ "${PACK}" == "1" ]]; then
     trap '' EXIT                     # 清 trap 防重复卸载
     OUTPUT="${OUTPUT:-${ROOTFS%/}-minimal.tar.xz}"
     OUTPUT="$(readlink -m "${OUTPUT}")"
-    echo "[devuan] 6. 调用打包：lib/slim-rootfs.sh"
+    echo "[debian] 6. 调用打包：lib/slim-rootfs.sh"
     "${REPO_ROOT}/lib/slim-rootfs.sh" "${ROOTFS}" "${OUTPUT}"
 fi
