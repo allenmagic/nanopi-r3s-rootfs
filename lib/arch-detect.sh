@@ -107,6 +107,59 @@ arch_precheck() {
 
 
 # ---------------------------------------------------------------------------
+# 为给定目标架构选择合适的 strip 命令。
+#   $1 = 目标架构（aarch64 / x86_64 ...，通常来自 arch_of_rootfs）
+# 选择逻辑：
+#   - 宿主 == 目标：本机 strip 即可真正生效
+#   - 跨架构：优先交叉 strip（<target>-linux-gnu-strip），其次 llvm-strip（全架构），
+#             都没有则退回本机 strip（但对异架构 ELF 不会真正生效，调用方应提示）
+# 通过 stdout 回传 strip 命令名；找不到任何可用 strip 时回传 "strip" 兜底。
+# ---------------------------------------------------------------------------
+arch_strip_cmd() {
+    local target host cross
+    target="$(arch_normalize "$1")"
+    host="$(arch_host)"
+
+    # 原生：本机 strip 直接可用
+    if [ "$host" = "$target" ]; then
+        echo "strip"
+        return 0
+    fi
+
+    # 跨架构：优先交叉 strip
+    case "$target" in
+        aarch64) cross="aarch64-linux-gnu-strip" ;;
+        x86_64)  cross="x86_64-linux-gnu-strip"  ;;
+        armhf)   cross="arm-linux-gnueabihf-strip" ;;
+        riscv64) cross="riscv64-linux-gnu-strip" ;;
+        *)       cross="" ;;
+    esac
+
+    if [ -n "$cross" ] && command -v "$cross" >/dev/null 2>&1; then
+        echo "$cross"; return 0
+    fi
+    if command -v llvm-strip >/dev/null 2>&1; then
+        echo "llvm-strip"; return 0
+    fi
+    echo "strip"   # 兜底（异架构下可能不生效，调用方负责提示）
+    return 0
+}
+
+# 判断给定 strip 命令对目标架构是否"真正有效"
+#   $1=strip命令 $2=目标架构
+#   return 0 = 有效；return 1 = 可能无效（本机 strip 处理异架构 ELF）
+arch_strip_effective() {
+    local strip="$1" target host
+    target="$(arch_normalize "$2")"
+    host="$(arch_host)"
+    [ "$host" = "$target" ] && return 0          # 原生，必然有效
+    [ "$strip" = "strip" ] && return 1           # 跨架构却用本机 strip → 可能无效
+    return 0                                      # 交叉 strip / llvm-strip → 有效
+}
+
+
+
+# ---------------------------------------------------------------------------
 # 直接执行（非 source）时：跑一次自检并打印用法，方便手动验证
 #   被 source 时这段不会触发，不污染调用方。
 # ---------------------------------------------------------------------------

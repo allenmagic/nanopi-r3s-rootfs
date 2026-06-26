@@ -5,7 +5,7 @@
 # 功能：
 #   1. 删除国际化语言包 / 帮助文档（locale / i18n / man / doc）
 #   2. 清空包管理器缓存（自动适配 xbps / apt / apk）
-#   3. strip 二进制调试符号（仅 ELF，排除静态库 .a/.o；跨架构自动选 strip）
+#   3. strip 二进制调试符号（仅 ELF，排除静态库 .a/.o；按 rootfs 目标架构自动选 strip）
 #   4. 统计精简后体积
 #   5. 删除旧包后用 xz 极限压缩打包（-9e -T0 多线程）
 #   6. 输出结果到 GitHub Actions（$GITHUB_OUTPUT / $GITHUB_STEP_SUMMARY）
@@ -14,27 +14,19 @@
 #   sudo ./lib/slim-rootfs.sh <rootfs目录> [输出文件名]
 #   sudo STRIP=aarch64-linux-gnu-strip ./lib/slim-rootfs.sh ./void-rootfs out.tar.xz
 #
+# 架构识别 / strip 工具选择委托 lib/arch-detect.sh。
 set -euo pipefail
+
+# ---------- 依赖：架构识别函数库（同目录定位）----------
+_SLIM_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=arch-detect.sh
+. "${_SLIM_LIB_DIR}/arch-detect.sh"
 
 # ---------- 可配置参数 ----------
 ROOTFS="${1:-rootfs}"                              # rootfs 目录
 OUTPUT="${2:-${ROOTFS%/}-minimal.tar.xz}"          # 输出文件名（默认 <rootfs>-minimal.tar.xz）
 XZ_LEVEL="${XZ_LEVEL:--9e -T0}"                    # xz 压缩参数（-T0 多线程）
 KEEP_PKG_DB="${KEEP_PKG_DB:-0}"                    # 1=保留包数据库（仍可在镜像内装卸软件包）
-
-# ---------- strip 工具：跨架构自动选择 ----------
-# 优先级：用户显式指定 STRIP > 交叉 strip(aarch64) > llvm-strip(全架构) > 本机 strip
-# 说明：x86 宿主的本机 strip 不认 aarch64 ELF，会逐个失败；
-#       交叉 strip 或 llvm-strip 才能真正 strip aarch64 二进制。
-if [[ -z "${STRIP:-}" ]]; then
-    if command -v aarch64-linux-gnu-strip >/dev/null 2>&1; then
-        STRIP=aarch64-linux-gnu-strip
-    elif command -v llvm-strip >/dev/null 2>&1; then
-        STRIP=llvm-strip
-    else
-        STRIP=strip
-    fi
-fi
 
 # ---------- 权限：非 root 自动 sudo 重入 ----------
 if [[ "${EUID}" -ne 0 ]]; then
@@ -66,20 +58,33 @@ if mount | grep -q " ${ROOTFS_ABS}/"; then
     exit 1
 fi
 
-# strip 工具检查（缺失则跳过第 3 步而非中断）
+# ---------- 架构 & strip 工具选择（委托 arch-detect）----------
+HOST_ARCH="$(arch_host)"
+TARGET_ARCH="$(arch_of_rootfs "${ROOTFS_ABS}")"   # 探测不到回传空串
+
+# strip 命令：用户显式 STRIP 优先；否则按目标架构自动选
+if [[ -z "${STRIP:-}" ]]; then
+    if [[ -n "${TARGET_ARCH}" ]]; then
+        STRIP="$(arch_strip_cmd "${TARGET_ARCH}")"
+    else
+        # 目标架构未知：退回本机 strip（保守）
+        STRIP="strip"
+    fi
+fi
+
+# strip 工具存在性检查（缺失则跳过第 3 步而非中断）
 HAS_STRIP=1
 if ! command -v "${STRIP}" >/dev/null 2>&1; then
     echo "警告：未找到 ${STRIP}，将跳过 strip 步骤。" >&2
     HAS_STRIP=0
 fi
 
-# 跨架构 strip 有效性提示：x86 宿主用本机 strip 时 strip 不会真正生效
-HOST_ARCH="$(uname -m)"
-if [[ "${HAS_STRIP}" -eq 1 && "${STRIP}" == "strip" \
-      && "${HOST_ARCH}" != "aarch64" && "${HOST_ARCH}" != "arm64" ]]; then
-    echo "提示：跨架构构建但仅有本机 strip（${HOST_ARCH}），strip 对 aarch64 二进制可能无效（体积不会减小）。" >&2
-    echo "      如需本地真正生效：apt-get install binutils-aarch64-linux-gnu（或 llvm）。" >&2
-    echo "      CI 在原生 aarch64 runner 上则无此问题。" >&2
+# 跨架构 strip 有效性提示（委托 arch-detect 判断）
+if [[ "${HAS_STRIP}" -eq 1 && -n "${TARGET_ARCH}" ]] \
+   && ! arch_strip_effective "${STRIP}" "${TARGET_ARCH}"; then
+    echo "提示：跨架构构建（${HOST_ARCH} → ${TARGET_ARCH}）但仅有本机 strip，strip 对目标 ELF 可能无效（体积不会减小）。" >&2
+    echo "      本地若要真正生效：apt-get install binutils-${TARGET_ARCH}-linux-gnu（或安装 llvm）。" >&2
+    echo "      CI 在原生 ${TARGET_ARCH} runner 上则无此问题。" >&2
 fi
 
 # file 命令检查（用于精确识别 ELF，缺失则降级）
@@ -95,7 +100,8 @@ if ! command -v xz >/dev/null 2>&1; then
     exit 1
 fi
 
-echo "==> 主机架构：  $(uname -m)"
+echo "==> 主机架构：  ${HOST_ARCH}"
+echo "==> 目标架构：  ${TARGET_ARCH:-未知}"
 echo "==> strip 工具：${STRIP}"
 echo "==> 目标 rootfs：${ROOTFS_ABS}"
 echo "==> 输出文件：  ${OUTPUT}"
@@ -205,7 +211,8 @@ if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
         echo "|------|----|"
         echo "| 输出文件 | \`${OUTPUT_ABS}\` |"
         echo "| 包大小   | ${OUTPUT_SIZE} |"
-        echo "| 主机架构 | $(uname -m) |"
+        echo "| 主机架构 | ${HOST_ARCH} |"
+        echo "| 目标架构 | ${TARGET_ARCH:-未知} |"
         echo "| strip 工具 | ${STRIP} |"
     } >> "${GITHUB_STEP_SUMMARY}"
 fi
