@@ -104,12 +104,13 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
-          name: "NanoPi R3S Rootfs ${{ steps.tag.outputs.tag }}"
+          name: ${{ steps.tag.outputs.tag }}
           files: |
-            dist/*.tar.*
+            dist/*.tar.xz
             dist/*.sha256
           draft: false
           prerelease: false
           fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
