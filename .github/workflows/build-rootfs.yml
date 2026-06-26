@@ -25,7 +25,8 @@ jobs:
       - id: set
         run: |
           if [ "${{ inputs.distro }}" = "all" ]; then
-            echo "matrix={\"distro\":${{ env.ALL_DISTROS }}}" >> "$GITHUB_OUTPUT"
+            ALL='${{ env.ALL_DISTROS }}'
+            echo "matrix={\"distro\":${ALL}}" >> "$GITHUB_OUTPUT"
           else
             echo "matrix={\"distro\":[\"${{ inputs.distro }}\"]}" >> "$GITHUB_OUTPUT"
           fi
