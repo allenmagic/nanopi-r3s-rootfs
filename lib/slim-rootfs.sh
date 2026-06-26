@@ -5,23 +5,36 @@
 # 功能：
 #   1. 删除国际化语言包 / 帮助文档（locale / i18n / man / doc）
 #   2. 清空包管理器缓存（自动适配 xbps / apt / apk）
-#   3. strip 二进制调试符号（仅 ELF，排除静态库 .a/.o）
+#   3. strip 二进制调试符号（仅 ELF，排除静态库 .a/.o；跨架构自动选 strip）
 #   4. 统计精简后体积
 #   5. 删除旧包后用 xz 极限压缩打包（-9e -T0 多线程）
 #   6. 输出结果到 GitHub Actions（$GITHUB_OUTPUT / $GITHUB_STEP_SUMMARY）
 #
 # 用法：
 #   sudo ./lib/slim-rootfs.sh <rootfs目录> [输出文件名]
-#   sudo STRIP=strip XZ_LEVEL="-6 -T0" ./lib/slim-rootfs.sh ./void-rootfs out.tar.xz
+#   sudo STRIP=aarch64-linux-gnu-strip ./lib/slim-rootfs.sh ./void-rootfs out.tar.xz
 #
 set -euo pipefail
 
 # ---------- 可配置参数 ----------
 ROOTFS="${1:-rootfs}"                              # rootfs 目录
 OUTPUT="${2:-${ROOTFS%/}-minimal.tar.xz}"          # 输出文件名（默认 <rootfs>-minimal.tar.xz）
-STRIP="${STRIP:-strip}"                            # strip 工具（同架构用本机 strip；交叉用 aarch64-linux-gnu-strip）
 XZ_LEVEL="${XZ_LEVEL:--9e -T0}"                    # xz 压缩参数（-T0 多线程）
 KEEP_PKG_DB="${KEEP_PKG_DB:-0}"                    # 1=保留包数据库（仍可在镜像内装卸软件包）
+
+# ---------- strip 工具：跨架构自动选择 ----------
+# 优先级：用户显式指定 STRIP > 交叉 strip(aarch64) > llvm-strip(全架构) > 本机 strip
+# 说明：x86 宿主的本机 strip 不认 aarch64 ELF，会逐个失败；
+#       交叉 strip 或 llvm-strip 才能真正 strip aarch64 二进制。
+if [[ -z "${STRIP:-}" ]]; then
+    if command -v aarch64-linux-gnu-strip >/dev/null 2>&1; then
+        STRIP=aarch64-linux-gnu-strip
+    elif command -v llvm-strip >/dev/null 2>&1; then
+        STRIP=llvm-strip
+    else
+        STRIP=strip
+    fi
+fi
 
 # ---------- 权限：非 root 自动 sudo 重入 ----------
 if [[ "${EUID}" -ne 0 ]]; then
@@ -60,6 +73,15 @@ if ! command -v "${STRIP}" >/dev/null 2>&1; then
     HAS_STRIP=0
 fi
 
+# 跨架构 strip 有效性提示：x86 宿主用本机 strip 时 strip 不会真正生效
+HOST_ARCH="$(uname -m)"
+if [[ "${HAS_STRIP}" -eq 1 && "${STRIP}" == "strip" \
+      && "${HOST_ARCH}" != "aarch64" && "${HOST_ARCH}" != "arm64" ]]; then
+    echo "提示：跨架构构建但仅有本机 strip（${HOST_ARCH}），strip 对 aarch64 二进制可能无效（体积不会减小）。" >&2
+    echo "      如需本地真正生效：apt-get install binutils-aarch64-linux-gnu（或 llvm）。" >&2
+    echo "      CI 在原生 aarch64 runner 上则无此问题。" >&2
+fi
+
 # file 命令检查（用于精确识别 ELF，缺失则降级）
 HAS_FILE=1
 if ! command -v file >/dev/null 2>&1; then
@@ -74,6 +96,7 @@ if ! command -v xz >/dev/null 2>&1; then
 fi
 
 echo "==> 主机架构：  $(uname -m)"
+echo "==> strip 工具：${STRIP}"
 echo "==> 目标 rootfs：${ROOTFS_ABS}"
 echo "==> 输出文件：  ${OUTPUT}"
 echo "==> 处理前大小：$(du -sh "${ROOTFS_ABS}" | cut -f1)"
@@ -105,7 +128,7 @@ else
     rm -rf "${ROOTFS_ABS}/var/lib/xbps/"* 2>/dev/null || true
 fi
 
-# ---------- 3. 剥离二进制调试符号（仅 ELF，排除静态库） ----------
+# ---------- 3. 剥离二进制调试符号（仅 ELF，排除静态库；strip 失败不致命） ----------
 if [[ "${HAS_STRIP}" -eq 1 ]]; then
     echo "[3/6] strip 二进制调试符号（较耗时）..."
     # 覆盖常见二进制目录；不存在的目录自动忽略
@@ -118,6 +141,8 @@ if [[ "${HAS_STRIP}" -eq 1 ]]; then
         echo "  -> 未发现可处理的二进制目录，跳过。"
     elif [[ "${HAS_FILE}" -eq 1 ]]; then
         # 稳妥版：file 识别后只处理可执行 ELF / 共享库，排除 .a/.o
+        # 注意：每个文件 strip 失败 || true，sh -c 末尾 exit 0，find 整体 || true，
+        #       三道兜底确保 strip 失败（如跨架构）不会触发 set -e 静默退出。
         find ${STRIP_DIRS} \
              -type f ! -name '*.a' ! -name '*.o' \
              -exec sh -c '
@@ -125,17 +150,19 @@ if [[ "${HAS_STRIP}" -eq 1 ]]; then
                  for f; do
                      case "$(file -b "$f")" in
                          *ELF*executable*|*ELF*shared\ object*)
-                             "$strip_bin" --strip-unneeded "$f" 2>/dev/null
+                             "$strip_bin" --strip-unneeded "$f" 2>/dev/null || true
                              ;;
                      esac
                  done
-             ' _ "${STRIP}" {} +
+                 exit 0
+             ' _ "${STRIP}" {} + || true
     else
         # 降级版：无 file 命令，仍排除静态库，其余直接尝试 strip
         find ${STRIP_DIRS} \
              -type f ! -name '*.a' ! -name '*.o' \
              -exec "${STRIP}" --strip-unneeded {} + 2>/dev/null || true
     fi
+    echo "  -> strip 完成（失败项已跳过）。"
 else
     echo "[3/6] 跳过 strip 步骤。"
 fi
@@ -179,6 +206,7 @@ if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
         echo "| 输出文件 | \`${OUTPUT_ABS}\` |"
         echo "| 包大小   | ${OUTPUT_SIZE} |"
         echo "| 主机架构 | $(uname -m) |"
+        echo "| strip 工具 | ${STRIP} |"
     } >> "${GITHUB_STEP_SUMMARY}"
 fi
 

@@ -10,7 +10,8 @@ REPO_ROOT="$(readlink -f "${SCRIPT_DIR}/../..")"  # → 仓库根
 source "${REPO_ROOT}/lib/chroot-helper.sh"
 
 # ---------- 可配置参数 ----------
-BUILD_BASE="${BUILD_BASE:-${REPO_ROOT}/build}"     # 仓库内 build/（git 忽略）
+DISTRO="void"
+BUILD_BASE="${BUILD_BASE:-${REPO_ROOT}/build/${DISTRO}}"     # 仓库内 build/（git 忽略）
 ROOTFS="${ROOTFS:-${BUILD_BASE}/void-rootfs}"
 CACHE_DIR="${CACHE_DIR:-${BUILD_BASE}/cache}"      # 下载缓存（复用免重下）
 ARCH="${ARCH:-aarch64}"
@@ -21,8 +22,6 @@ HOSTNAME_VAL="${HOSTNAME_VAL:-nanopi-r3s-void}"
 SETUP_SCRIPT="${SCRIPT_DIR}/setup.sh"
 PACK="${PACK:-0}"                                  # 1=构建后顺带打包
 
-# ---------- 权限：非 root 自动 sudo 重入 ----------
-[ "${EUID}" -eq 0 ] || exec sudo -E "$0" "$@"
 
 [ -f "${SETUP_SCRIPT}" ] || { echo "缺少 ${SETUP_SCRIPT}" >&2; exit 1; }
 
@@ -33,16 +32,8 @@ XBPS_DIR="${WORKDIR}/xbps-static"
 CACHE_DIR="$(readlink -m "${CACHE_DIR}")"
 mkdir -p "${WORKDIR}" "${XBPS_DIR}" "${CACHE_DIR}"
 
-# 把 build 顶层目录属主还给调用者（rootfs 内部仍须 root）
-if [ -n "${SUDO_USER:-}" ]; then
-    # CACHE_DIR 默认在 BUILD_BASE 下时只 chown 顶层避免重复
-    if [ "${CACHE_DIR%/*}" = "${BUILD_BASE}" ] || [ "${CACHE_DIR}" = "${BUILD_BASE}" ]; then
-        chown "${SUDO_USER}:${SUDO_USER}" "${BUILD_BASE}" 2>/dev/null || true
-    else
-        chown "${SUDO_USER}:${SUDO_USER}" "${BUILD_BASE}" "${CACHE_DIR}" 2>/dev/null || true
-    fi
-fi
-
+# ---------- 权限：非 root 自动 sudo 重入 ----------
+[ "${EUID}" -eq 0 ] || exec sudo -E "$0" "$@"
 
 # 护栏：构建工作区不能是共享系统目录
 case "${WORKDIR}" in

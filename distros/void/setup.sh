@@ -16,7 +16,7 @@ echo "[chroot] 安装必要工具 ..."
 # 兜底公钥导入交互；补 ncurses-base（terminfo 数据库，clear/tput 依赖）
 xbps-install -y -S -R "${REPO}" \
     ncurses ncurses-base \
-    iproute2 iputils ifupdown dhcpcd tzdata openssh nano
+    iproute2 iputils ifupdown dhcpcd tzdata openssh nano chrony
 
 # ---------- 第五步：系统设置 ----------
 echo "[chroot] xbps-reconfigure -a ..."

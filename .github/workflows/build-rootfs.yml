@@ -1,0 +1,115 @@
+name: Build Router Rootfs
+
+on:
+  workflow_dispatch:
+    inputs:
+      distro:
+        description: "要构建的发行版"
+        type: choice
+        required: true
+        default: all
+        options: [all, void, devuan, debian, alpine]
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      matrix: ${{ steps.set.outputs.matrix }}
+    steps:
+      - id: set
+        run: |
+          if [ "${{ inputs.distro }}" = "all" ]; then
+            echo 'matrix={"distro":["void","devuan","debian","alpine"]}' >> "$GITHUB_OUTPUT"
+          else
+            echo "matrix={\"distro\":[\"${{ inputs.distro }}\"]}" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: prepare
+    runs-on: ubuntu-24.04-arm          # ← 原生 arm64，无需 QEMU
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    name: build-${{ matrix.distro }}
+    env:
+      DISTRO: ${{ matrix.distro }}
+      ARCH: aarch64
+      PACK: "1"
+      ROOT_PASSWORD: ${{ secrets.ROOT_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install host build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            xz-utils zstd file binutils \
+            curl ca-certificates \
+            mmdebstrap debootstrap debian-archive-keyring \
+            gpgv
+
+      - name: Build ${{ matrix.distro }} rootfs
+        run: |
+          set -euo pipefail
+          chmod +x "distros/${DISTRO}/build.sh" || true
+          sudo -E "distros/${DISTRO}/build.sh"
+
+      - name: Locate artifact
+        id: artifact
+        run: |
+          set -euo pipefail
+          f="$(ls -1 build/${DISTRO}/${DISTRO}-rootfs-minimal.tar.xz 2>/dev/null \
+               || ls -1 build/${DISTRO}/*-rootfs-minimal.tar.* 2>/dev/null \
+               || ls -1 build/${DISTRO}/*.tar.* 2>/dev/null | head -n1)"
+          if [ -z "${f:-}" ] || [ ! -e "$f" ]; then
+            echo "未找到 ${DISTRO} 产物" >&2
+            ls -lR build/${DISTRO} || true
+            exit 1
+          fi
+          out="${DISTRO}-aarch64-rootfs.tar.${f##*.}"
+          cp "$f" "$out"
+          sha256sum "$out" > "${out}.sha256"
+          echo "path=$out" >> "$GITHUB_OUTPUT"
+          echo "sha=${out}.sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.distro }}-aarch64-rootfs
+          path: |
+            ${{ steps.artifact.outputs.path }}
+            ${{ steps.artifact.outputs.sha }}
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    needs: build
+    if: ${{ always() && contains(needs.build.result, 'success') }}
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Resolve tag
+        id: tag
+        run: echo "tag=nanopi-r3s-rootfs-$(date +%Y%m%d)" >> "$GITHUB_OUTPUT"
+
+      - name: Create / Update Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: "NanoPi R3S Rootfs ${{ steps.tag.outputs.tag }}"
+          files: |
+            dist/*.tar.*
+            dist/*.sha256
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
