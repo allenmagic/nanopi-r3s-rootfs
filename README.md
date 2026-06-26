@@ -38,9 +38,28 @@ sudo PACK=1 ./distros/void/build.sh
 # 自定义参数
 sudo BUILD_BASE=/tmp/my-build ROOT_PASSWORD=mysecret \
   HOSTNAME_VAL=my-router ./distros/void/build.sh
+
+# 使用镜像源别名（支持：default / tuna / tsinghua）
+sudo REPO=tuna PACK=1 ./distros/void/build.sh
+
+# 或直接指定完整镜像 URL
+sudo REPO=https://mirrors.tuna.tsinghua.edu.cn/voidlinux/current/aarch64 \
+  PACK=1 ./distros/void/build.sh
 ```
 
-构建产物默认输出到 `build/void-rootfs/`（目录），打包后为 `build/void-rootfs-minimal.tar.xz`。
+构建产物默认输出到 `build/void/void-rootfs/`（目录），打包后为 `build/void/void-rootfs-minimal.tar.xz`。
+
+> **镜像源说明**：`build.sh` 内置了常用镜像源别名。`REPO` 支持三种形式：
+> - 不传 → 官方源 `https://repo-default.voidlinux.org/current/aarch64`
+> - 别名 → `tuna` / `tsinghua` 自动解析到对应镜像 URL 并推导 `XBPS_STATIC_URL`
+> - 完整 URL → 直接使用，`XBPS_STATIC_URL` 按 Void 惯例 `{base}/static/…` 推导
+>
+> 如果自定义镜像的 xbps-static 路径不符合惯例，可用 `XBPS_STATIC_URL` 单独指定：
+> ```bash
+> REPO=https://my-mirror/voidlinux/current/aarch64 \
+> XBPS_STATIC_URL=https://my-mirror/voidlinux/static/xbps-static-latest.aarch64-musl.tar.xz \
+> sudo ./distros/void/build.sh
+> ```
 
 ### 渲染配置
 

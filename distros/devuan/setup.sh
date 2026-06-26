@@ -27,7 +27,7 @@ apt-get install -y --no-install-recommends \
 
 # ---------- 第五步：系统设置 ----------
 echo "[chroot] 设置 root 密码 ..."
-echo "root:${ROOT_PASSWORD}" | chpasswd
+echo "root:${ROOT_PASSWORD}" | /usr/sbin/chpasswd
 
 echo "[chroot] 设置主机名：${HOSTNAME_VAL}"
 echo "${HOSTNAME_VAL}" > /etc/hostname

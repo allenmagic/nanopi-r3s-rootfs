@@ -15,8 +15,32 @@ BUILD_BASE="${BUILD_BASE:-${REPO_ROOT}/build/${DISTRO}}"     # 仓库内 build/�
 ROOTFS="${ROOTFS:-${BUILD_BASE}/void-rootfs}"
 CACHE_DIR="${CACHE_DIR:-${BUILD_BASE}/cache}"      # 下载缓存（复用免重下）
 ARCH="${ARCH:-aarch64}"
-REPO="${REPO:-https://repo-default.voidlinux.org/current/${ARCH}}"
-XBPS_STATIC_URL="${XBPS_STATIC_URL:-https://repo-default.voidlinux.org/static/xbps-static-latest.aarch64-musl.tar.xz}"
+
+# ---------- 镜像源解析：REPO 和 XBPS_STATIC_URL ----------
+# 镜像别名映射，别名 → mirror base URL。Void 镜像遵循同一结构：
+#   ${base}/current/${ARCH}              — 包仓库
+#   ${base}/static/xbps-static-...       — xbps-static 工具
+declare -A MIRRORS
+MIRRORS["default"]="https://repo-default.voidlinux.org"
+MIRRORS["tuna"]="https://mirrors.tuna.tsinghua.edu.cn/voidlinux"
+MIRRORS["tsinghua"]="https://mirrors.tuna.tsinghua.edu.cn/voidlinux"
+# ↑ 添加新镜像时在这里加一条
+
+# REPO 支持三种形式：
+#   1. 不传 → 默认官方源
+#   2. 传别名（如 "tuna"）→ 从 MIRRORS 查找
+#   3. 传完整 URL（含 ://）→ 直接使用
+_REPO_IN="${REPO:-default}"
+if [[ "${_REPO_IN}" =~ ^[a-z]+:// ]]; then
+    REPO="${_REPO_IN}"
+    _MIRROR_BASE="${_REPO_IN}"
+else
+    _MIRROR_BASE="${MIRRORS[${_REPO_IN}]:-${MIRRORS[default]}}"
+    REPO="${_MIRROR_BASE}/current/${ARCH}"
+fi
+# XBPS_STATIC_URL 从 mirror base 推导，也可单独指定覆盖
+XBPS_STATIC_URL="${XBPS_STATIC_URL:-${_MIRROR_BASE%/current/*}/static/xbps-static-latest.aarch64-musl.tar.xz}"
+unset _REPO_IN _MIRROR_BASE
 ROOT_PASSWORD="${ROOT_PASSWORD:-root}"             # CI Secret，未设默认 root
 HOSTNAME_VAL="${HOSTNAME_VAL:-nanopi-r3s-void}"
 SETUP_SCRIPT="${SCRIPT_DIR}/setup.sh"
