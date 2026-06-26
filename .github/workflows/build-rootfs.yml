@@ -1,7 +1,7 @@
 name: Build Router Rootfs
 
 env:
-  ALL_DISTROS: '["void","devuan"]'          # 与 workflow_dispatch.inputs.distro.options 保持同步
+  ALL_DISTROS: '["void","devuan","debian"]'  # 与 workflow_dispatch.inputs.distro.options 保持同步
 
 on:
   workflow_dispatch:
@@ -11,7 +11,7 @@ on:
         type: choice
         required: true
         default: all
-        options: [all, void, devuan]
+        options: [all, void, devuan, debian]
 
 permissions:
   contents: write
