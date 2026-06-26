@@ -17,7 +17,7 @@ BUILD_BASE="${BUILD_BASE:-${BUILD_ROOT}/${DISTRO}}"          # build/devuan
 ROOTFS="${ROOTFS:-${BUILD_BASE}/devuan-rootfs}"
 CACHE_DIR="${CACHE_DIR:-${BUILD_BASE}/cache}"                # apt 缓存（复用免重下）
 ARCH="${ARCH:-arm64}"                                        # Debian/Devuan 架构名
-SUITE="${SUITE:-stable}"                                   # Devuan 最新稳定版
+SUITE="${SUITE:-excalibur}"                                  # Devuan 稳定版
 COMPONENTS="${COMPONENTS:-main}"
 ROOT_PASSWORD="${ROOT_PASSWORD:-root}"                       # CI Secret，未设默认 root
 HOSTNAME_VAL="${HOSTNAME_VAL:-nanopi-r3s-devuan}"
@@ -81,20 +81,35 @@ KEYRING="${KEYRING:-}"
 KEYRING_CACHE="${BUILD_BASE}/keyring/devuan-archive-keyring.gpg"
 
 fetch_keyring() {
-    # 移植自 CI：从 Devuan pool 下载 keyring .deb 并解包
+    # 从 Devuan pool 下载 keyring .deb 并解包
+    # 优先 HTML 解析 → 失败则尝试已知版本列表
     echo "[devuan] 下载 Devuan keyring → ${KEYRING_CACHE} ..."
     mkdir -p "$(dirname "${KEYRING_CACHE}")"
     local POOL="${KEYRING_POOL}"
     local tmp; tmp="$(mktemp -d)"
-    wget -qO "${tmp}/pool.html" "${POOL}" || {
-        echo "错误：pool 目录拉取失败：${POOL}" >&2; rm -rf "${tmp}"; return 1; }
-    local DEB_NAME
-    DEB_NAME="$(grep -oE 'devuan-keyring_[0-9.]+_all\.deb' "${tmp}/pool.html" \
-                | sort -uV | tail -n1)"
+
+    local DEB_NAME=""
+    # 1) 尝试 HTML 解析获取最新版本
+    if wget -qO "${tmp}/pool.html" "${POOL}" 2>/dev/null; then
+        DEB_NAME="$(grep -oE 'devuan-keyring_[0-9.]+_all\.deb' "${tmp}/pool.html" \
+                    | sort -uV | tail -n1)"
+    fi
+    # 2) HTML 解析失败则尝试已知版本列表
+    if [ -z "${DEB_NAME}" ]; then
+        for ver in 2026.01.13 2025.08.09 2024.09.24; do
+            if wget --spider -q "${POOL}devuan-keyring_${ver}_all.deb" 2>/dev/null; then
+                DEB_NAME="devuan-keyring_${ver}_all.deb"
+                break
+            fi
+        done
+    fi
     [ -n "${DEB_NAME}" ] || {
-        echo "错误：未从 pool 解析到 .deb 包名" >&2; rm -rf "${tmp}"; return 1; }
-    echo "[devuan]   找到：${DEB_NAME}"
-    wget -qO "${tmp}/k.deb" "${POOL}${DEB_NAME}" || { rm -rf "${tmp}"; return 1; }
+        echo "错误：无法找到 Devuan keyring .deb（${POOL}）" >&2
+        rm -rf "${tmp}"; return 1; }
+
+    echo "[devuan]   下载：${DEB_NAME}"
+    wget -qO "${tmp}/k.deb" "${POOL}${DEB_NAME}" || {
+        echo "错误：下载失败：${POOL}${DEB_NAME}" >&2; rm -rf "${tmp}"; return 1; }
     dpkg-deb -x "${tmp}/k.deb" "${tmp}/kr"
     local SRC
     SRC="$(find "${tmp}/kr" -path '*keyrings/devuan-archive-keyring.gpg' | head -n1)"
