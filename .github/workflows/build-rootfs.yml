@@ -49,7 +49,7 @@ jobs:
             xz-utils zstd file binutils \
             curl ca-certificates \
             mmdebstrap debootstrap debian-archive-keyring \
-            gpgv arch-test qemu-user-static qemu-user-static qemu-user-static
+            gpgv arch-test qemu-user-binfmt
 
       - name: Build ${{ matrix.distro }} rootfs
         run: |
