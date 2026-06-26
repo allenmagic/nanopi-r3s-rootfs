@@ -5,7 +5,7 @@
 #
 set -eu
 
-ROOT_PASSWORD="${ROOT_PASSWORD:-root}"
+ROOT_PASSWORD="${ROOT_PASSWORD:-passwd123}"
 HOSTNAME_VAL="${HOSTNAME_VAL:-nanopi-r3s-devuan}"
 SUITE="${SUITE:-daedalus}"
 SERIAL_DEV="${SERIAL_DEV:-ttyS2}"

@@ -1,5 +1,8 @@
 name: Build Router Rootfs
 
+env:
+  ALL_DISTROS: '["void","devuan"]'          # 与 workflow_dispatch.inputs.distro.options 保持同步
+
 on:
   workflow_dispatch:
     inputs:
@@ -8,7 +11,6 @@ on:
         type: choice
         required: true
         default: all
-        # options: [all, void, devuan, debian, alpine]
         options: [all, void, devuan]
 
 permissions:
@@ -23,7 +25,7 @@ jobs:
       - id: set
         run: |
           if [ "${{ inputs.distro }}" = "all" ]; then
-            echo 'matrix={"distro":["void","devuan","debian","alpine"]}' >> "$GITHUB_OUTPUT"
+            echo "matrix={\"distro\":${{ env.ALL_DISTROS }}}" >> "$GITHUB_OUTPUT"
           else
             echo "matrix={\"distro\":[\"${{ inputs.distro }}\"]}" >> "$GITHUB_OUTPUT"
           fi
@@ -37,7 +39,6 @@ jobs:
     name: build-${{ matrix.distro }}
     env:
       DISTRO: ${{ matrix.distro }}
-      ARCH: aarch64
       PACK: "1"
       ROOT_PASSWORD: ${{ secrets.ROOT_PASSWORD }}
     steps:
