@@ -18,7 +18,6 @@ ROOTFS="${ROOTFS:-${BUILD_BASE}/devuan-rootfs}"
 CACHE_DIR="${CACHE_DIR:-${BUILD_BASE}/cache}"                # apt 缓存（复用免重下）
 ARCH="${ARCH:-arm64}"                                        # Debian/Devuan 架构名
 SUITE="${SUITE:-excalibur}"                                  # Devuan 版本（对应 Debian bookworm）
-REPO="${REPO:-http://deb.devuan.org/merged}"                 # merged 源最省心
 COMPONENTS="${COMPONENTS:-main}"
 ROOT_PASSWORD="${ROOT_PASSWORD:-root}"                       # CI Secret，未设默认 root
 HOSTNAME_VAL="${HOSTNAME_VAL:-nanopi-r3s-devuan}"
@@ -26,6 +25,32 @@ SETUP_SCRIPT="${SCRIPT_DIR}/setup.sh"
 PACK="${PACK:-0}"                                            # 1=构建后顺带打包
 # Devuan keyring：mmdebstrap 验证仓库签名所需
 KEYRING="${KEYRING:-/usr/share/keyrings/devuan-archive-keyring.gpg}"
+
+# ---------- 镜像源解析：REPO 和 KEYRING_POOL ----------
+# 镜像别名映射，别名 → mirror base URL。所有镜像遵循同一结构：
+#   ${base}/merged               — apt 仓库
+#   ${base}/devuan/pool/...      — keyring .deb 下载路径
+declare -A MIRRORS
+MIRRORS["default"]="http://deb.devuan.org"
+MIRRORS["tuna"]="https://mirrors.tuna.tsinghua.edu.cn/devuan"
+MIRRORS["tsinghua"]="https://mirrors.tuna.tsinghua.edu.cn/devuan"
+# ↑ 添加新镜像时在这里加一条
+
+# REPO 支持三种形式：
+#   1. 不传 → 默认官方源
+#   2. 传别名（如 "tuna"）→ 从 MIRRORS 查找
+#   3. 传完整 URL（含 ://）→ 直接使用
+_REPO_IN="${REPO:-default}"
+if [[ "${_REPO_IN}" =~ ^[a-z]+:// ]]; then
+    _REPO_BASE="${_REPO_IN%/merged}"                       # 去掉末尾 /merged
+    _REPO_BASE="${_REPO_BASE%/}"                           # 去掉可能的尾部斜杠
+    REPO="${_REPO_IN}"
+else
+    _REPO_BASE="${MIRRORS[${_REPO_IN}]:-${MIRRORS[default]}}"
+    REPO="${_REPO_BASE}/merged"
+fi
+KEYRING_POOL="${KEYRING_POOL:-${_REPO_BASE}/devuan/pool/main/d/devuan-keyring/}"
+unset _REPO_IN _REPO_BASE
 
 # ---------- 路径规范化（readlink -m：允许路径尚不存在） ----------
 BUILD_ROOT="$(readlink -m "${BUILD_ROOT}")"
@@ -59,7 +84,7 @@ fetch_keyring() {
     # 移植自 CI：从 Devuan pool 下载 keyring .deb 并解包
     echo "[devuan] 下载 Devuan keyring → ${KEYRING_CACHE} ..."
     mkdir -p "$(dirname "${KEYRING_CACHE}")"
-    local POOL="http://deb.devuan.org/devuan/pool/main/d/devuan-keyring/"
+    local POOL="${KEYRING_POOL}"
     local tmp; tmp="$(mktemp -d)"
     wget -qO "${tmp}/pool.html" "${POOL}" || {
         echo "错误：pool 目录拉取失败：${POOL}" >&2; rm -rf "${tmp}"; return 1; }

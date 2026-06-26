@@ -4,7 +4,7 @@
 
 ## 特性
 
-- **多发行版支持**：Void Linux（成熟）、Debian（进行中）、Alpine（进行中）
+- **多发行版支持**：Void Linux（成熟）、Devuan（成熟）、Debian（进行中）、Alpine（进行中）
 - **模板化配置**：基于 Tera 模板引擎（Jinja2 语法），三层 TOML 配置自动合并渲染
 - **跨架构构建**：x86_64 主机可通过 qemu-user-static 构建 aarch64 rootfs
 - **最小化打包**：自动精简 rootfs（清理 locale/man、strip 调试符号、清空包缓存），xz 极限压缩
@@ -79,6 +79,7 @@ Site 命名约定：`<workspace>-<location>`，例如 `home-beijing`、`office-s
 | 发行版 | 状态 | 包管理器 | 服务管理 | 串口 |
 |--------|------|----------|---------|------|
 | **Void Linux** | ✅ 成熟 | xbps | runit | ttyS2 @ 1500000 |
+| **Devuan** | ✅ 成熟 | apt (mmdebstrap) | sysvinit | ttyS2 @ 1500000 |
 | **Debian** | 🚧 待完善 | apt | systemd | - |
 | **Alpine** | 🚧 待完善 | apk | OpenRC | - |
 
@@ -95,12 +96,48 @@ Site 命名约定：`<workspace>-<location>`，例如 `home-beijing`、`office-s
    - 启用 SSH 服务
 5. 可选：`slim-rootfs.sh` 精简并打包为 `.tar.xz`
 
+### Devuan 构建流程
+
+```bash
+# 默认官方源构建
+sudo ./distros/devuan/build.sh
+
+# 构建并打包
+sudo PACK=1 ./distros/devuan/build.sh
+
+# 使用镜像源别名（支持：default / tuna / tsinghua）
+sudo REPO=tuna PACK=1 ./distros/devuan/build.sh
+
+# 或直接指定完整镜像 URL
+sudo REPO=https://mirrors.tuna.tsinghua.edu.cn/devuan/merged \
+  PACK=1 ./distros/devuan/build.sh
+
+# 自定义参数
+sudo SUITE=daedalus ROOT_PASSWORD=mysecret \
+  ./distros/devuan/build.sh
+```
+
+> **镜像源说明**：`build.sh` 内置了常用镜像源别名。`REPO` 支持三种形式：
+> - 不传 → 官方源 `http://deb.devuan.org/merged`
+> - 别名 → `tuna` / `tsinghua` 自动解析到对应镜像 URL 并推导 keyring 路径
+> - 完整 URL → 直接使用，keyring 路径按 Devuan 惯例 `{base}/devuan/pool/…` 推导
+>
+> 如果自定义镜像的 keyring 路径不符合惯例，可用 `KEYRING_POOL` 单独指定：
+> ```bash
+> REPO=https://my-mirror/devuan/merged \
+> KEYRING_POOL=https://my-mirror/pool/devuan-keyring/ \
+> sudo ./distros/devuan/build.sh
+> ```
+
 ## 项目结构
 
 ```
 ├── distros/                    # 发型版构建定义
 │   ├── void/                   #   Void Linux（完整实现）
 │   │   ├── build.sh            #     rootfs 构建入口
+│   │   └── setup.sh            #     chroot 内初始化脚本
+│   ├── devuan/                 #   Devuan（完整实现）
+│   │   ├── build.sh            #     rootfs 构建入口（mmdebstrap）
 │   │   └── setup.sh            #     chroot 内初始化脚本
 │   ├── debian/                 #   Debian（进行中）
 │   │   ├── packages.list       #     需要安装的包列表
