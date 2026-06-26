@@ -51,6 +51,18 @@ jobs:
             mmdebstrap debootstrap debian-archive-keyring \
             gpgv arch-test qemu-user-binfmt
 
+
+      - name: Setup binfmt_misc for aarch64 (if needed)
+        if: runner.arch == 'arm64' || runner.arch == 'aarch64'
+        run: |
+          if ! grep -q '^enabled' /proc/sys/fs/binfmt_misc/qemu-aarch64 2>/dev/null; then
+            echo "Registering aarch64 binfmt handler..."
+            sudo apt-get update
+            sudo apt-get install -y qemu-user-static binfmt-support
+            sudo update-binfmts --enable qemu-aarch64 || true
+          fi
+
+
       - name: Build ${{ matrix.distro }} rootfs
         run: |
           set -euo pipefail
