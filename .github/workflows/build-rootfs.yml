@@ -55,7 +55,7 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x "distros/${DISTRO}/build.sh" || true
-          sudo -E "distros/${DISTRO}/build.sh"
+          sudo -E bash -x "distros/${DISTRO}/build.sh"
 
       - name: Locate artifact
         id: artifact
