@@ -22,7 +22,8 @@ echo "[chroot] 安装必要工具 ..."
 apt-get install -y --no-install-recommends \
     ncurses-bin ncurses-base \
     iproute2 iputils-ping ifupdown dhcpcd5 tzdata \
-    openssh-server nano chrony
+    openssh-server nano chrony \
+    passwd
 
 # ---------- 第五步：系统设置 ----------
 echo "[chroot] 设置 root 密码 ..."
