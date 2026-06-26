@@ -147,8 +147,7 @@ mmdebstrap \
     --variant=minbase \
     --components="${COMPONENTS}" \
     --keyring="${KEYRING}" \
-    --aptopt="Dir::Cache::Archives \"${CACHE_DIR}\";" \
-    --include=ca-certificates \
+    --include=ca-certificates,devuan-keyring \
     "${SUITE}" \
     "${ROOTFS}" \
     "${REPO}"
