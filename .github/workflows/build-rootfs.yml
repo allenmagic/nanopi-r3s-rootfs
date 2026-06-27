@@ -2,6 +2,7 @@ name: Build Router Rootfs
 
 env:
   ALL_DISTROS: '["void","devuan","debian"]'  # 与 workflow_dispatch.inputs.distro.options 保持同步
+  ALL_INFRAS: '["sing-box","landscape"]'     # 路由系统组件
 
 on:
   workflow_dispatch:
@@ -12,6 +13,12 @@ on:
         required: true
         default: all
         options: [all, void, devuan, debian]
+      infra:
+        description: "路由系统组件"
+        type: choice
+        required: true
+        default: sing-box
+        options: [all, sing-box, landscape]
 
 permissions:
   contents: write
@@ -24,12 +31,19 @@ jobs:
     steps:
       - id: set
         run: |
+          # distro 列表
           if [ "${{ inputs.distro }}" = "all" ]; then
-            ALL='${{ env.ALL_DISTROS }}'
-            echo "matrix={\"distro\":${ALL}}" >> "$GITHUB_OUTPUT"
+            DISTROS='${{ env.ALL_DISTROS }}'
           else
-            echo "matrix={\"distro\":[\"${{ inputs.distro }}\"]}" >> "$GITHUB_OUTPUT"
+            DISTROS='["${{ inputs.distro }}"]'
           fi
+          # infra 列表
+          if [ "${{ inputs.infra }}" = "all" ]; then
+            INFRAS='${{ env.ALL_INFRAS }}'
+          else
+            INFRAS='["${{ inputs.infra }}"]'
+          fi
+          echo "matrix={\"distro\":${DISTROS},\"infra\":${INFRAS}}" >> "$GITHUB_OUTPUT"
 
   build:
     needs: prepare
@@ -37,9 +51,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
-    name: build-${{ matrix.distro }}
+    name: build-${{ matrix.distro }}-${{ matrix.infra }}
     env:
       DISTRO: ${{ matrix.distro }}
+      INFRA: ${{ matrix.infra }}
       PACK: "1"
       ROOT_PASSWORD: ${{ secrets.ROOT_PASSWORD }}
     steps:
@@ -54,7 +69,7 @@ jobs:
             mmdebstrap debootstrap debian-archive-keyring \
             gpgv
 
-      - name: Build ${{ matrix.distro }} rootfs
+      - name: Build ${{ matrix.distro }} rootfs (${{ matrix.infra }})
         run: |
           set -euo pipefail
           chmod +x "distros/${DISTRO}/build.sh" || true
@@ -72,7 +87,7 @@ jobs:
             ls -lR build/${DISTRO} || true
             exit 1
           fi
-          out="${DISTRO}-aarch64-rootfs.tar.${f##*.}"
+          out="${DISTRO}-${INFRA}-aarch64-rootfs.tar.${f##*.}"
           cp "$f" "$out"
           sha256sum "$out" > "${out}.sha256"
           echo "path=$out" >> "$GITHUB_OUTPUT"
@@ -81,7 +96,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.distro }}-aarch64-rootfs
+          name: ${{ matrix.distro }}-${{ matrix.infra }}-aarch64-rootfs
           path: |
             ${{ steps.artifact.outputs.path }}
             ${{ steps.artifact.outputs.sha }}
@@ -116,4 +131,3 @@ jobs:
           fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
