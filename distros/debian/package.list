@@ -19,8 +19,8 @@
 # ========== sing-box ==========
 [pm] dnsmasq
 [pm] nftables
-[pm] tailscale
-[dl@https://github.com/sagernet/sing-box/releases/download/v1.10.0/sing-box-1.10.0-linux-arm64.tar.gz] sing-box
+[dl@https://pkgs.tailscale.com/stable/tailscale_latest_arm64.tgz] tailscale
+[dl@https://github.com/sagernet/sing-box/releases/download/v1.13.11/sing-box-1.13.11-linux-arm64.tar.gz] sing-box
 [dl@https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64] cloudflared
 
 # ========== landscape ==========
