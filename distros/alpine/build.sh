@@ -15,6 +15,7 @@ DISTRO="alpine"
 BUILD_ROOT="${BUILD_ROOT:-${REPO_ROOT}/build}"
 BUILD_BASE="${BUILD_BASE:-${BUILD_ROOT}/${DISTRO}}"
 ROOTFS="${ROOTFS:-${BUILD_BASE}/alpine-rootfs}"
+CACHE_DIR="${CACHE_DIR:-${BUILD_BASE}/cache}"
 MIRROR="${MIRROR:-https://dl-cdn.alpinelinux.org/alpine}"
 ARCH="${ARCH:-aarch64}"
 ROOT_PASSWORD="${ROOT_PASSWORD:-root}"
@@ -41,9 +42,10 @@ unset _REPO_IN
 BUILD_ROOT="$(readlink -m "${BUILD_ROOT}")"
 BUILD_BASE="$(readlink -m "${BUILD_BASE}")"
 ROOTFS="$(readlink -m "${ROOTFS}")"
+CACHE_DIR="$(readlink -m "${CACHE_DIR}")"
 WORKDIR="$(dirname "${ROOTFS}")"
 
-# ---------- 提权前：以普通用户创建目录 ----------
+# ---------- 提权前：以普通用户创建构建目录树 ----------
 if [ "${EUID}" -ne 0 ]; then
     mkdir -p "${BUILD_BASE}" "${WORKDIR}"
 fi
@@ -51,7 +53,8 @@ fi
 # ---------- 权限 ----------
 [ "${EUID}" -eq 0 ] || exec sudo -E "$0" "$@"
 
-mkdir -p "${BUILD_BASE}"
+# root 态：补建缓存目录
+mkdir -p "${CACHE_DIR}"
 [ -f "${SETUP_SCRIPT}" ] || { echo "缺少 ${SETUP_SCRIPT}" >&2; exit 1; }
 
 # 护栏
