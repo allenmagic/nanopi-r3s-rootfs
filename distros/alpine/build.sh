@@ -139,16 +139,8 @@ rc-update add bootmisc boot
 rc-update add syslog default
 rc-update add crond default
 
-# setup-alpine quick mode（最小化配置）
-cat > /answer_file << 'EOL'
-KEYMAPOPTS="us us"
-TIMEZONEOPTS="-z CST-8"
-APKREPOSOPTS="-r"
-SSHDOPTS="-c none"
-NTPOPTS="-c openntpd"
-EOL
-setup-alpine -q -f /answer_file 2>/dev/null || true
-rm -f /answer_file
+# 时区（替代 setup-alpine，避免 chroot 内网络探测卡死）
+cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime 2>/dev/null || true
 CHROOTEOF
 
 # ---------- 第六步：执行 setup ----------
