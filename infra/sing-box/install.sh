@@ -39,9 +39,12 @@ install_sing_box() {
             # 处理 OS 过滤语法：[os] package
             case "${_pkg_}" in
                 '['*)
-                    _os_filter_="${_pkg_%%]*}"
-                    _os_filter_="${_os_filter_#[}"
-                    _pkg_="${_pkg_#*\] }"
+                    # 解析 [os1,os2]  → OS 过滤列表
+                    _pkg_="${_pkg_#\[}"
+                    _os_filter_="${_pkg_%%\]*}"
+                    _pkg_="${_pkg_#*\]}"
+                    # 去掉 ] 后的空格和制表符
+                    _pkg_="${_pkg_#"${_pkg_%%[![:space:]]*}"}"
                     # 检查当前 DISTRO 是否在过滤列表中
                     case ",${_os_filter_}," in
                         *",${DISTRO},"*) ;;
