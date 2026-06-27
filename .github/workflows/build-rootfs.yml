@@ -1,7 +1,7 @@
 name: Build Router Rootfs
 
 env:
-  ALL_DISTROS: '["void","devuan","debian"]'  # 与 workflow_dispatch.inputs.distro.options 保持同步
+  ALL_DISTROS: '["void","devuan","debian","alpine"]'  # 与 workflow_dispatch.inputs.distro.options 保持同步
   ALL_INFRAS: '["sing-box","landscape"]'     # 路由系统组件
 
 on:
@@ -12,7 +12,7 @@ on:
         type: choice
         required: true
         default: all
-        options: [all, void, devuan, debian]
+        options: [all, void, devuan, debian, alpine]
       infra:
         description: "路由系统组件"
         type: choice

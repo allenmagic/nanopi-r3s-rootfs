@@ -1,26 +1,29 @@
 # ============================================================
-# Devuan 包列表
+# Alpine Linux 包列表
 #
 # 语法：
-#   [pm] <package>                —— 包管理器安装（apt-get）
+#   [pm] <package>                —— 包管理器安装（apk add）
 #   [dl@<url>] <binary_name>      —— 下载 URL 到 /usr/local/bin/<binary_name>
-#                                   自动解压 .tar.gz，查找二进制文件
 #
-# 三段式：base / router / landscape
+# 三段式：base / sing-box / landscape
 # ============================================================
 
 # ========== base ==========
-[pm] openssh-server
+[pm] openssh
 [pm] chrony
 [pm] curl
-[pm] ncurses-bin
-[pm] ncurses-base
+[pm] bash
+[pm] nano
+[pm] kmod
+[pm] iproute2
+[pm] util-linux
+[pm] tzdata
 
 # ========== sing-box ==========
 [pm] dnsmasq
 [pm] nftables
-[dl@https://pkgs.tailscale.com/stable/tailscale_latest_arm64.tgz] tailscale
-[dl@https://github.com/sagernet/sing-box/releases/download/v1.13.11/sing-box-1.13.11-linux-arm64.tar.gz] sing-box
+[pm] tailscale
+[pm] sing-box
 [dl@https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64] cloudflared
 
 # ========== landscape ==========
