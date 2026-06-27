@@ -11,6 +11,8 @@ MIRROR="${MIRROR:-https://dl-cdn.alpinelinux.org/alpine}"
 SERIAL_DEV="${SERIAL_DEV:-ttyS2}"
 SERIAL_BAUD="${SERIAL_BAUD:-1500000}"
 
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
 . /download-helpers.sh
 
 # ============================================================
