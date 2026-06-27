@@ -1,0 +1,17 @@
+#!/sbin/openrc-run
+
+name=$RC_SVCNAME
+description="Cloudflare Tunnel"
+
+command="/usr/local/bin/cloudflared"
+command_args="--protocol http2 tunnel run --token eyJhIjoiNzE0YTQ3ZjBhMzRjOWE1NDgyYTg3OGE0OGU3MjYxMmMiLCJ0IjoiYTk4Yjg0NzQtYTgwOS00OWMwLTkwOTQtMjA3YTI5ZjI3ZjBkIiwicyI6Ik9UY3dOR0ppTnpndFpEUXhZUzAwTnprMExXRmtNbU10TkRFd01HTXpPV1ExTlRFeVpURTRPVFExTldJdE1EWTJOeTAwWVRSbExXSmtOakl0TjJNd1pUWmpOVGhtTlRkaSJ9"
+command_background="yes"
+pidfile="/var/run/$name.pid"
+output_log="/var/log/$name.log"
+error_log="/var/log/$name.log"
+
+depend() {
+    need net
+    after firewall
+    use logger dns
+}

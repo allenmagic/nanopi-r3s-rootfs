@@ -1,0 +1,27 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          cloudflared
+# Required-Start:    $network $remote_fs
+# Required-Stop:     $network
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: cloudflared tunnel
+### END INIT INFO
+
+DAEMON=/usr/local/bin/cloudflared
+PIDFILE=/var/run/cloudflared.pid
+
+case "$1" in
+    start)
+        echo "Starting cloudflared..."
+        start-stop-daemon --start --background --make-pidfile \
+            --pidfile "$PIDFILE" --exec "$DAEMON" -- --no-autoupdate
+        ;;
+    stop)
+        echo "Stopping cloudflared..."
+        start-stop-daemon --stop --pidfile "$PIDFILE" || true
+        rm -f "$PIDFILE"
+        ;;
+    restart) "$0" stop; "$0" start ;;
+    *) echo "Usage: $0 {start|stop|restart}"; exit 1 ;;
+esac

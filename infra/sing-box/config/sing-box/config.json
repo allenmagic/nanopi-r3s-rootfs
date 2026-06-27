@@ -1,0 +1,166 @@
+{
+  "log": {
+    "level": "debug",
+    "timestamp": true
+  },
+  
+  "dns": {
+    "servers": [
+      {
+        "type": "udp",
+        "tag": "local",
+        "server": "223.5.5.5",
+        "server_port": 53
+      },
+      {
+        "type": "tls",
+        "tag": "google",
+        "server": "8.8.8.8"
+      }
+    ],
+    "rules": [
+      {
+        "rule_set": ["adblock-reject", "geosite-ads", "adblock-cnlite"],
+        "action": "predefined",
+        "rcode": "NXDOMAIN"
+      }
+    ],
+    "final": "local",
+    "cache_capacity": 8192,
+    "strategy": "ipv4_only"
+  },
+
+  "ntp": {
+    "enabled": true,
+    "server": "ntp5.aliyun.com",
+    "server_port": 123,
+    "interval": "30m"
+  },
+
+  "experimental": {
+    "cache_file": {
+      "enabled": false,
+      "path": "/var/lib/sing-box/cache.db"
+    }
+  },
+
+  "inbounds": [
+    {
+      "type": "tun",
+      "tag": "tun-in",
+      "interface_name": "tun0",
+      "address": ["172.19.0.1/30"],
+      "mtu": 1280,
+      "auto_route": true,
+      "include_interface": ["eth1"],
+      "auto_redirect": true,
+      "strict_route": false,
+      "stack": "system",
+      "endpoint_independent_nat": false,
+      "udp_timeout": "5m"
+    }
+  ],
+
+  "endpoints": [
+    {
+      "type": "tailscale",
+      "tag": "hs-aliyun",
+      "system_interface": true,
+      "system_interface_name": "ts0",
+      "state_directory": "/etc/sing-box/headscale",
+      "auth_key": "__ROUTER_HEADSCALE_AUTH_KEY__",
+      "control_url": "https://hs.zyx1986.icu",
+      "hostname": "r3s-alpine-router-beijing",
+      "advertise_routes": ["192.168.8.0/24"]
+    }
+  ],
+
+  "outbounds": [
+    {
+      "type": "socks",
+      "tag": "ss-out",
+      "server": "192.168.8.180",
+      "server_port": 1080,
+      "version": "5"
+    },
+    {
+      "type": "direct",
+      "tag": "direct-out"
+    },
+    {
+      "type": "block",
+      "tag": "block"
+    }
+  ],
+
+  "route": {
+    "rules":[
+      {
+        "action": "sniff"
+      },
+      {
+        "protocol": "dns",
+        "action": "hijack-dns"
+      },
+      {
+        "protocol": "bittorrent",
+        "outbound": "direct-out"
+      },
+      {
+        "rule_set": ["adblock-reject", "geosite-ads", "adblock-cnlite"],
+        "outbound": "block"
+      },
+      {
+        "process_path": ["/usr/sbin/tailscaled", "/usr/bin/tailscale"],
+        "outbound": "direct-out"
+      },
+      {
+        "ip_cidr": ["100.64.0.0/10"],
+        "outbound": "hs-aliyun"
+      },
+      { 
+         "source_ip_cidr": ["192.168.8.180/32"],
+         "outbound": "direct-out"
+      },
+      {
+        "ip_is_private": true,
+        "outbound": "direct-out"
+      },
+      {
+        "outbound": "direct-out"
+      }
+    ],
+    "rule_set": [
+      {
+        "tag": "adblock-reject",
+        "type": "local",
+        "format": "binary",
+        "path": "/etc/sing-box/rules/adblock_reject.srs"
+      },
+      {
+        "tag": "geosite-ads",
+        "type": "local",
+        "format": "binary",
+        "path": "/etc/sing-box/rules/geosite-category-ads-all.srs"
+      },
+      {
+        "tag": "adblock-cnlite",
+        "type": "local",
+        "format": "binary",
+        "path": "/etc/sing-box/rules/adblocksingbox.srs"
+      },
+      {
+        "tag": "proxy-list",
+        "type": "local",
+        "format": "binary",
+        "path": "/etc/sing-box/rules/proxy_list.srs"
+      }
+    ],
+    "auto_detect_interface": true,
+    "default_domain_resolver": 
+      {
+         "server": "local"
+      },
+    "final": "direct-out"
+  }
+}

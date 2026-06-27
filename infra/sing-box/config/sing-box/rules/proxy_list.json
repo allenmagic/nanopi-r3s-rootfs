@@ -1,0 +1,32 @@
+{
+  "version": 3,
+  "rules": [
+    {
+      "domain": [
+        "github.com",
+        "chatgpt.com",
+        "openai.com",
+        "google.com",
+        "youtube.com",
+        "githubusercontent.com",
+        "docker.com",
+        "docker.io",
+        "docker-registry.com",
+        "sing-box.sagernet.org"
+        "claude.ai"
+      ],
+      "domain_suffix": [
+        ".github.com",
+        ".githubusercontent.com",
+        ".google.com",
+        ".youtube.com",
+        ".docker.com",
+        ".docker.io",
+        ".docker-registry.com",
+        ".openai.com",
+        ".sing-box.sagernet.org"
+        ".claude.ai"
+      ]
+    }
+  ]
+}

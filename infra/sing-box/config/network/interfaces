@@ -1,0 +1,13 @@
+auto lo
+iface lo inet loopback
+
+# WAN 口 (eth0)
+auto eth0
+iface eth0 inet dhcp
+    hostname r3s-alpine-router
+
+# LAN 口 (eth1)
+auto eth1
+iface eth1 inet static
+    address 192.168.8.1
+    netmask 255.255.255.0

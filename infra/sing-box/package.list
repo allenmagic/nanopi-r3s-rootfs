@@ -1,0 +1,28 @@
+# ============================================================
+# sing-box 栈系统包列表
+#
+# 语法说明：
+#   - 以 # 开头的行为注释，被忽略
+#   - 无前缀的行 = 所有 OS 都安装
+#   - [os] 前缀 = 仅在该 OS 安装，os 可用值：
+#     void / debian / devuan / alpine
+#   - 多个 OS 用逗号分隔，如 [void,alpine]
+# ============================================================
+
+# ---- 公共包（所有 OS 均安装） ----
+dnsmasq
+nftables
+tailscale
+openssh
+chrony
+curl
+
+# ---- OS 专属包 ----
+[void]          runit-nftables
+[void]          iproute2
+
+[alpine]        openrc
+
+[debian]        systemd
+
+# Devuan sysvinit 已由 mmdebstrap minbase 提供
