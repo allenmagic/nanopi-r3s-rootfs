@@ -127,8 +127,8 @@ export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 echo "${MIRROR}/latest-stable/main" > /etc/apk/repositories
 echo "${MIRROR}/latest-stable/community" >> /etc/apk/repositories
 
-# 安装 alpine-base 和 openrc
-apk add --no-cache alpine-base openrc
+# 安装 openrc（不装 alpine-base，避免触发 setup-alpine）
+apk add --no-cache openrc busybox-initscripts
 
 # 串口控制台
 echo 'ttyS2::respawn:/sbin/agetty -L 1500000 ttyS2 vt100' >> /etc/inittab
