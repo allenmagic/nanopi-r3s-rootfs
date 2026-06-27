@@ -18,6 +18,7 @@
 [pm] iproute2
 [pm] util-linux
 [pm] tzdata
+[pm] busybox-openrc
 
 # ========== sing-box ==========
 [pm] dnsmasq

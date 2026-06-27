@@ -7,7 +7,12 @@
 enable_router_services() {
     echo "[service] === 启用路由器服务 (INFRA=${INFRA:-sing-box}) ==="
 
-    # --- base 服务 ---
+    # --- 系统基础服务 ---
+    _enable_service bootmisc boot
+    _enable_service syslog
+    _enable_service crond
+
+    # --- base 应用服务 ---
     _enable_service sshd
     _enable_service chronyd
     _enable_nftables
@@ -31,13 +36,14 @@ enable_router_services() {
 }
 
 # 通用服务启用
+# _enable_service <name> [runlevel]
+#   runlevel 可选，默认 default
 _enable_service() {
     _svc_="$1"
-    if command -v rc-update >/dev/null 2>&1; then
-        rc-update add "${_svc_}" default 2>/dev/null || true
-        echo "[service]   启用: ${_svc_}"
-    else
-        echo "[service]   警告: rc-update 不存在" >&2
+    _rl_="${2:-default}"
+    if [ -f "/etc/init.d/${_svc_}" ]; then
+        rc-update add "${_svc_}" "${_rl_}" 2>/dev/null || true
+        echo "[service]   启用: ${_svc_} (${_rl_})"
     fi
 }
 

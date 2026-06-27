@@ -122,6 +122,7 @@ cp -f "${SCRIPT_DIR}/service.sh" "${ROOTFS}/service.sh"
 echo "[alpine] 4. 安装基础系统 ..."
 chroot_run "${ROOTFS}" /bin/sh << CHROOTEOF
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+set -e
 
 # 配置软件源
 echo "${MIRROR}/latest-stable/main" > /etc/apk/repositories
@@ -134,13 +135,6 @@ apk add --no-cache openrc
 echo 'ttyS2::respawn:/sbin/agetty -L 1500000 ttyS2 vt100' >> /etc/inittab
 echo 'ttyS2' >> /etc/securetty 2>/dev/null || true
 
-# Boot 级服务
-rc-update add bootmisc boot
-rc-update add syslog default
-rc-update add crond default
-
-# 时区（替代 setup-alpine，避免 chroot 内网络探测卡死）
-cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime 2>/dev/null || true
 CHROOTEOF
 
 # ---------- 第六步：执行 setup ----------
