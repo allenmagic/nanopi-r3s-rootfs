@@ -60,27 +60,40 @@ install_sing_box() {
     fi
 
     # ============================================================
-    #  2. sing-box —— GitHub Release tar.gz
+    #  2. sing-box —— 优先用包管理器，没有则 GitHub Release
+    #      Void/Alpine 在 package.list 已添加 sing-box 包，
+    #      安装后这里自动跳过。Devuan/Debian 等没有包的走下载。
     # ============================================================
-    echo "[sing-box] 安装 sing-box ..."
-    _ver="${SING_BOX_VERSION:-latest}"
-    if [ "${_ver}" = "latest" ]; then
-        _tag="$(_gh_latest_tag sagernet/sing-box)"
-        _ver="$(echo "${_tag}" | sed 's/^v//')"
-        echo "[sing-box]   latest tag: ${_tag}, version: ${_ver}"
+    if command -v sing-box >/dev/null 2>&1; then
+        echo "[sing-box]   sing-box 已安装 ($(sing-box version 2>/dev/null | head -1 || echo 'by package manager'))"
     else
-        echo "[sing-box]   指定版本: ${_ver}"
-    fi
-    _gh_release \
-        "https://github.com/sagernet/sing-box/releases/download/v${_ver}/sing-box-${_ver}-linux-arm64.tar.gz" \
-        sing-box
+        echo "[sing-box] 从 GitHub Release 下载 sing-box ..."
+        _ver="${SING_BOX_VERSION:-latest}"
+        if [ "${_ver}" = "latest" ]; then
+            _tag="$(_gh_latest_tag sagernet/sing-box)"
+            _ver="$(echo "${_tag}" | sed 's/^v//')"
+            echo "[sing-box]   latest tag: ${_tag}, version: ${_ver}"
+        else
+            echo "[sing-box]   指定版本: ${_ver}"
+        fi
+        _gh_release \
+            "https://github.com/sagernet/sing-box/releases/download/v${_ver}/sing-box-${_ver}-linux-arm64.tar.gz" \
+            sing-box
 
-    # 验证 sing-box 可执行
-    if ! /usr/local/bin/sing-box version >/dev/null 2>&1; then
-        echo "[sing-box] 错误: sing-box 安装失败" >&2
-        return 1
+        # 验证 sing-box 可执行
+        if ! /usr/local/bin/sing-box version >/dev/null 2>&1; then
+            echo "[sing-box] 错误: sing-box 安装失败" >&2
+            return 1
+        fi
+        echo "[sing-box]   sing-box $(/usr/local/bin/sing-box version | head -1)"
     fi
-    echo "[sing-box]   sing-box $(/usr/local/bin/sing-box version | head -1)"
+
+    # 统一路径：确保 /usr/local/bin/sing-box 存在
+    # （包管理器装在 /usr/bin/，GitHub Release 装在 /usr/local/bin/，
+    #   所有 init 服务文件统一引用 /usr/local/bin/）
+    if [ ! -e /usr/local/bin/sing-box ] && [ -x /usr/bin/sing-box ]; then
+        ln -s /usr/bin/sing-box /usr/local/bin/sing-box
+    fi
 
     # ============================================================
     #  3. cloudflared —— GitHub Release 直接二进制

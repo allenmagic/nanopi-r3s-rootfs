@@ -18,11 +18,15 @@ chrony
 curl
 
 # ---- OS 专属包 ----
+# 有包管理器的优先用包，没有再走 GitHub Release（见 install.sh）
+[void]          sing-box
 [void]          runit-nftables
 [void]          iproute2
 
+[alpine]        sing-box
 [alpine]        openrc
 
 [debian]        systemd
 
 # Devuan sysvinit 已由 mmdebstrap minbase 提供
+# Devuan 没有 sing-box 包，走 GitHub Release 兜底
