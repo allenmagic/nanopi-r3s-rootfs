@@ -1,60 +1,147 @@
 #!/bin/sh
 #
-# distros/devuan/setup.sh —— Devuan chroot 内设置（默认 sysvinit，不换 init）
-#   装工具 + 启用服务(update-rc.d) + root 密码 + 主机名 + 串口控制台(/etc/inittab)
+# distros/devuan/setup.sh —— Devuan chroot 内设置（sysvinit）
+#   安装包 + 部署配置 + 系统设置 + 启用服务
 #
 set -eu
 
 ROOT_PASSWORD="${ROOT_PASSWORD:-passwd123}"
 HOSTNAME_VAL="${HOSTNAME_VAL:-nanopi-r3s-devuan}"
 SUITE="${SUITE:-excalibur}"
+REPO="${REPO:-http://deb.devuan.org/merged}"
 SERIAL_DEV="${SERIAL_DEV:-ttyS2}"
 SERIAL_BAUD="${SERIAL_BAUD:-1500000}"
 
 export DEBIAN_FRONTEND=noninteractive
 
-# ---------- 第四步：安装必要工具 ----------
-echo "[chroot] 更新 apt 索引 ..."
+. /download-helpers.sh
+
+# ============================================================
+#  1. 安装包 —— 按 package.list 三段安装
+# ============================================================
+echo "[setup] === 安装系统包 ==="
+
+# 先更新 apt 索引
 apt-get update
 
-echo "[chroot] 安装必要工具 ..."
-# 注：sysvinit 体系，这些 deb 包自带 /etc/init.d/ 脚本，开箱即用
-apt-get install -y --no-install-recommends \
-    ncurses-bin ncurses-base \
-    iproute2 iputils-ping ifupdown dhcpcd5 tzdata \
-    openssh-server nano chrony \
-    passwd
+_PKG_LIST_="/package.list"
+if [ -f "${_PKG_LIST_}" ]; then
+    while read -r _line_; do
+        [ -z "${_line_}" ] && continue
 
-# ---------- 第五步：系统设置 ----------
-echo "[chroot] 设置 root 密码 ..."
+        case "${_line_}" in
+            '# ========== base'*)
+                _section_="base"
+                echo "[setup] --- 段: base ---"
+                continue
+                ;;
+            '# ========== router'*)
+                _section_="router"
+                echo "[setup] --- 段: router ---"
+                continue
+                ;;
+            '# ========== landscape'*)
+                _section_="landscape"
+                echo "[setup] --- 段: landscape ---"
+                continue
+                ;;
+            '#'*) continue ;;
+        esac
+
+        [ "${_section_}" = "landscape" ] && continue
+
+        case "${_line_}" in
+            '[pm]'*)
+                _pkg_="${_line_#\[pm\] }"
+                echo "[setup]   [pm] ${_pkg_}"
+                apt-get install -y --no-install-recommends "${_pkg_}"
+                ;;
+            '[dl:'*)
+                _ver_="${_line_%%\] *}"
+                _ver_="${_ver_#\[dl:}"
+                _pkg_="${_line_#*\] }"
+                echo "[setup]   [dl:${_ver_}] ${_pkg_}"
+                dl_sing_box "${_ver_}"
+                ;;
+            '[dl]'*)
+                _pkg_="${_line_#\[dl\] }"
+                echo "[setup]   [dl] ${_pkg_}"
+                case "${_pkg_}" in
+                    sing-box)    dl_sing_box ;;
+                    cloudflared) dl_cloudflared ;;
+                    tailscale)   dl_tailscale ;;
+                esac
+                ;;
+        esac
+    done < "${_PKG_LIST_}"
+else
+    echo "[setup] 警告: ${_PKG_LIST_} 不存在" >&2
+fi
+
+# ============================================================
+#  2. 部署配置文件
+# ============================================================
+echo "[setup] === 部署出厂配置 ==="
+_CFG_="/infra/sing-box/config"
+
+for _f_ in "${_CFG_}"/*; do
+    _base_="$(basename "${_f_}")"
+    [ "${_base_}" = "init" ] && continue
+    cp -r "${_f_}" /etc/
+done
+
+find /etc \( -name '*.md' -o -name '*.example' \) -exec rm -f {} + 2>/dev/null || true
+
+# 部署 sysvinit 脚本
+if [ -d "${_CFG_}/init/sysvinit" ]; then
+    cp -f "${_CFG_}/init/sysvinit/"* /etc/init.d/ 2>/dev/null || true
+    chmod +x /etc/init.d/sing-box /etc/init.d/cloudflared /etc/init.d/tailscaled 2>/dev/null || true
+fi
+
+if [ ! -e /usr/local/bin/sing-box ] && [ -x /usr/bin/sing-box ]; then
+    ln -s /usr/bin/sing-box /usr/local/bin/sing-box
+fi
+
+# ============================================================
+#  3. 系统设置
+# ============================================================
+echo "[setup] === 系统设置 ==="
+
+echo "[setup] 设置 root 密码 ..."
 echo "root:${ROOT_PASSWORD}" | /usr/sbin/chpasswd
 
-echo "[chroot] 设置主机名：${HOSTNAME_VAL}"
+echo "[setup] 设置默认 shell 为 bash ..."
+/usr/sbin/usermod -s /bin/bash root
+
+echo "[setup] 设置主机名：${HOSTNAME_VAL}"
 echo "${HOSTNAME_VAL}" > /etc/hostname
-# Debian 系惯例：/etc/hosts 里给主机名一条回环记录，避免 sudo/部分程序解析告警
 if ! grep -q "127.0.1.1[[:space:]]*${HOSTNAME_VAL}" /etc/hosts 2>/dev/null; then
     printf '127.0.1.1\t%s\n' "${HOSTNAME_VAL}" >> /etc/hosts
 fi
 
-echo "[chroot] 启用服务（sysvinit / update-rc.d）..."
-# deb 包安装时通常已注册默认 runlevel；这里显式确保（幂等）
-update-rc.d ssh defaults    >/dev/null 2>&1 || true
+echo "[setup] 启用基础服务 ..."
+update-rc.d ssh defaults >/dev/null 2>&1 || true
 update-rc.d chrony defaults >/dev/null 2>&1 || true
 
-echo "[chroot] 配置串口控制台 ${SERIAL_DEV} @ ${SERIAL_BAUD}（/etc/inittab）..."
-# sysvinit 用 /etc/inittab 的 getty 行管理串口控制台
-# id 取设备名去掉 tty 前缀的末段，保证唯一（如 ttyS2 → S2）
+echo "[setup] 配置串口控制台 ${SERIAL_DEV} @ ${SERIAL_BAUD} ..."
 GETTY_ID="$(echo "${SERIAL_DEV}" | sed 's/^tty//')"
 INITTAB_LINE="${GETTY_ID}:23:respawn:/sbin/getty -L ${SERIAL_DEV} ${SERIAL_BAUD} vt100"
 touch /etc/inittab
-# 移除同设备的旧行后重新追加（幂等）
 sed -i "\#:/sbin/getty -L ${SERIAL_DEV} #d" /etc/inittab
 sed -i "/^${GETTY_ID}:/d" /etc/inittab
 echo "${INITTAB_LINE}" >> /etc/inittab
 
-# ---------- 瘦身 ----------
-echo "[chroot] 清理 apt 缓存 ..."
+# ============================================================
+#  4. 启用路由器服务
+# ============================================================
+echo "[setup] === 启用服务 ==="
+. /service.sh
+enable_router_services
+
+# ============================================================
+#  5. 清理
+# ============================================================
+echo "[setup] 清理 apt 缓存 ..."
 apt-get clean
 rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*.deb 2>/dev/null || true
-
-echo "[chroot] setup 完成。"
+echo "[setup] 完成。"

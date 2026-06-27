@@ -1,47 +1,128 @@
 #!/bin/sh
 #
 # distros/debian/setup.sh —— Debian chroot 内设置（systemd）
-#   装工具 + 启用服务(systemctl) + root 密码 + 主机名 + 串口控制台(systemd)
+#   安装包 + 部署配置 + 系统设置 + 启用服务
 #
 set -eu
 
 ROOT_PASSWORD="${ROOT_PASSWORD:-passwd123}"
 HOSTNAME_VAL="${HOSTNAME_VAL:-nanopi-r3s-debian}"
 SUITE="${SUITE:-stable}"
+REPO="${REPO:-http://deb.debian.org/debian}"
 SERIAL_DEV="${SERIAL_DEV:-ttyS2}"
 SERIAL_BAUD="${SERIAL_BAUD:-1500000}"
 
 export DEBIAN_FRONTEND=noninteractive
 
-# ---------- 第四步：安装必要工具 ----------
-echo "[chroot] 更新 apt 索引 ..."
+. /download-helpers.sh
+
+# ============================================================
+#  1. 安装包 —— 按 package.list 三段安装
+# ============================================================
+echo "[setup] === 安装系统包 ==="
+
+# 先更新 apt 索引
 apt-get update
 
-echo "[chroot] 安装必要工具 ..."
-apt-get install -y --no-install-recommends \
-    ncurses-bin ncurses-base \
-    iproute2 iputils-ping ifupdown dhcpcd5 tzdata \
-    openssh-server nano chrony \
-    passwd systemd-sysv
+_PKG_LIST_="/package.list"
+if [ -f "${_PKG_LIST_}" ]; then
+    while read -r _line_; do
+        [ -z "${_line_}" ] && continue
 
-# ---------- 第五步：系统设置 ----------
-echo "[chroot] 设置 root 密码 ..."
+        case "${_line_}" in
+            '# ========== base'*)
+                _section_="base"
+                echo "[setup] --- 段: base ---"
+                continue
+                ;;
+            '# ========== router'*)
+                _section_="router"
+                echo "[setup] --- 段: router ---"
+                continue
+                ;;
+            '# ========== landscape'*)
+                _section_="landscape"
+                echo "[setup] --- 段: landscape ---"
+                continue
+                ;;
+            '#'*) continue ;;
+        esac
+
+        [ "${_section_}" = "landscape" ] && continue
+
+        case "${_line_}" in
+            '[pm]'*)
+                _pkg_="${_line_#\[pm\] }"
+                echo "[setup]   [pm] ${_pkg_}"
+                apt-get install -y --no-install-recommends "${_pkg_}"
+                ;;
+            '[dl:'*)
+                _ver_="${_line_%%\] *}"
+                _ver_="${_ver_#\[dl:}"
+                _pkg_="${_line_#*\] }"
+                echo "[setup]   [dl:${_ver_}] ${_pkg_}"
+                dl_sing_box "${_ver_}"
+                ;;
+            '[dl]'*)
+                _pkg_="${_line_#\[dl\] }"
+                echo "[setup]   [dl] ${_pkg_}"
+                case "${_pkg_}" in
+                    sing-box)    dl_sing_box ;;
+                    cloudflared) dl_cloudflared ;;
+                    tailscale)   dl_tailscale ;;
+                esac
+                ;;
+        esac
+    done < "${_PKG_LIST_}"
+else
+    echo "[setup] 警告: ${_PKG_LIST_} 不存在" >&2
+fi
+
+# ============================================================
+#  2. 部署配置文件
+# ============================================================
+echo "[setup] === 部署出厂配置 ==="
+_CFG_="/infra/sing-box/config"
+
+for _f_ in "${_CFG_}"/*; do
+    _base_="$(basename "${_f_}")"
+    [ "${_base_}" = "init" ] && continue
+    cp -r "${_f_}" /etc/
+done
+
+find /etc \( -name '*.md' -o -name '*.example' \) -exec rm -f {} + 2>/dev/null || true
+
+# 部署 systemd unit 文件
+if [ -d "${_CFG_}/init/systemd" ]; then
+    cp -f "${_CFG_}/init/systemd/"* /etc/systemd/system/ 2>/dev/null || true
+fi
+
+if [ ! -e /usr/local/bin/sing-box ] && [ -x /usr/bin/sing-box ]; then
+    ln -s /usr/bin/sing-box /usr/local/bin/sing-box
+fi
+
+# ============================================================
+#  3. 系统设置
+# ============================================================
+echo "[setup] === 系统设置 ==="
+
+echo "[setup] 设置 root 密码 ..."
 echo "root:${ROOT_PASSWORD}" | /usr/sbin/chpasswd
 
-echo "[chroot] 设置主机名：${HOSTNAME_VAL}"
+echo "[setup] 设置默认 shell 为 bash ..."
+/usr/sbin/usermod -s /bin/bash root
+
+echo "[setup] 设置主机名：${HOSTNAME_VAL}"
 echo "${HOSTNAME_VAL}" > /etc/hostname
-# Debian 系惯例：/etc/hosts 里给主机名一条回环记录
 if ! grep -q "127.0.1.1[[:space:]]*${HOSTNAME_VAL}" /etc/hosts 2>/dev/null; then
     printf '127.0.1.1\t%s\n' "${HOSTNAME_VAL}" >> /etc/hosts
 fi
 
-echo "[chroot] 启用服务（systemctl）..."
+echo "[setup] 启用基础服务 ..."
 systemctl enable ssh
 systemctl enable chrony
 
-echo "[chroot] 配置串口控制台 ${SERIAL_DEV} @ ${SERIAL_BAUD}（systemd）..."
-# systemd 有 serial-getty@.service 模板，直接 enable 对应设备即可
-# 覆盖默认 baud rate
+echo "[setup] 配置串口控制台 ${SERIAL_DEV} @ ${SERIAL_BAUD} ..."
 mkdir -p /etc/systemd/system/serial-getty@"${SERIAL_DEV}".service.d
 cat > /etc/systemd/system/serial-getty@"${SERIAL_DEV}".service.d/override.conf <<EOF
 [Service]
@@ -50,9 +131,17 @@ ExecStart=-/sbin/agetty -L ${SERIAL_DEV} ${SERIAL_BAUD} vt100
 EOF
 systemctl enable serial-getty@"${SERIAL_DEV}".service
 
-# ---------- 瘦身 ----------
-echo "[chroot] 清理 apt 缓存 ..."
+# ============================================================
+#  4. 启用路由器服务
+# ============================================================
+echo "[setup] === 启用服务 ==="
+. /service.sh
+enable_router_services
+
+# ============================================================
+#  5. 清理
+# ============================================================
+echo "[setup] 清理 apt 缓存 ..."
 apt-get clean
 rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*.deb 2>/dev/null || true
-
-echo "[chroot] setup 完成。"
+echo "[setup] 完成。"

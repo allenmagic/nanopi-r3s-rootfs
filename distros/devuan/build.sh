@@ -197,12 +197,20 @@ echo "[devuan] 3. 进入 chroot ..."
 trap 'chroot_exit "${ROOTFS}"' EXIT
 chroot_enter "${ROOTFS}"
 
+# ---------- 第三+步：拷贝安装框架到 rootfs ----------
+echo "[devuan] 3+. 拷贝安装框架到 rootfs ..."
+cp -f "${REPO_ROOT}/lib/download-helpers.sh" "${ROOTFS}/download-helpers.sh"
+cp -r "${REPO_ROOT}/infra" "${ROOTFS}/infra"
+cp -f "${SCRIPT_DIR}/package.list" "${ROOTFS}/package.list"
+cp -f "${SCRIPT_DIR}/service.sh" "${ROOTFS}/service.sh"
+
 # ---------- 第四+五步：执行 setup ----------
 echo "[devuan] 4+5. 执行 setup（装工具 / 配置）..."
 cp -f "${SETUP_SCRIPT}" "${ROOTFS}/setup.sh"
 chmod +x "${ROOTFS}/setup.sh"
 chroot_run "${ROOTFS}" /usr/bin/env \
     DEBIAN_FRONTEND=noninteractive \
+    DISTRO="${DISTRO}" \
     ROOT_PASSWORD="${ROOT_PASSWORD}" \
     HOSTNAME_VAL="${HOSTNAME_VAL}" \
     SUITE="${SUITE}" \
@@ -210,6 +218,10 @@ chroot_run "${ROOTFS}" /usr/bin/env \
     COMPONENTS="${COMPONENTS}" \
     /bin/sh /setup.sh
 rm -f "${ROOTFS}/setup.sh"
+rm -f "${ROOTFS}/download-helpers.sh"
+rm -f "${ROOTFS}/package.list"
+rm -f "${ROOTFS}/service.sh"
+rm -rf "${ROOTFS}/infra"
 
 echo "[devuan] base rootfs 构建完成：${ROOTFS}"
 

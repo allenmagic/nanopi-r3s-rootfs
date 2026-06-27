@@ -1,0 +1,26 @@
+# ============================================================
+# Debian 包列表
+#
+# 语法：
+#   [pm] <package>     —— 包管理器安装（apt-get）
+#   [dl] <package>     —— 下载安装（最新版）
+#   [dl:<ver>] <pkg>   —— 下载安装（指定版本）
+#
+# 三段式：base / router / landscape
+# ============================================================
+
+# ========== base ==========
+[pm] openssh-server
+[pm] chrony
+[pm] curl
+[pm] ncurses-bin
+[pm] ncurses-base
+
+# ========== router ==========
+[pm] dnsmasq
+[pm] nftables
+[pm] tailscale
+[dl:1.10.0] sing-box
+[dl]        cloudflared
+
+# ========== landscape ==========
