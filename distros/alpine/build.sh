@@ -118,35 +118,38 @@ cp -r "${REPO_ROOT}/infra" "${ROOTFS}/infra"
 cp -f "${SCRIPT_DIR}/package.list" "${ROOTFS}/package.list"
 cp -f "${SCRIPT_DIR}/service.sh" "${ROOTFS}/service.sh"
 
-# ---------- 第四步：先装 alpine-base + openrc，再执行 setup ----------
-echo "[alpine] 4. 安装 alpine-base + openrc ..."
-chroot_run "${ROOTFS}" /bin/sh -c "
-    echo '${MIRROR}/latest-stable/main' > /etc/apk/repositories
-    echo '${MIRROR}/latest-stable/community' >> /etc/apk/repositories
-    apk add --no-cache alpine-base openrc 2>&1
-"
+# ---------- 第四步：安装基础系统（alpine-base + openrc + 基础配置）----------
+echo "[alpine] 4. 安装基础系统 ..."
+chroot_run "${ROOTFS}" /bin/sh << CHROOTEOF
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
-# ---------- 第五步：系统基础配置 ----------
-echo "[alpine] 5. 系统基础配置 ..."
-chroot_run "${ROOTFS}" /bin/sh -c "
-    # serial console
-    echo 'ttyS2::respawn:/sbin/agetty -L 1500000 ttyS2 vt100' >> /etc/inittab
-    echo 'ttyS2' >> /etc/securetty 2>/dev/null || true
-    # boot services
-    rc-update add bootmisc boot
-    rc-update add syslog default
-    rc-update add crond default
-    # setup-alpine quick
-    cat > /answer_file << 'EOL'
-KEYMAPOPTS=\"us us\"
-TIMEZONEOPTS=\"-z CST-8\"
-APKREPOSOPTS=\"-r\"
-SSHDOPTS=\"-c none\"
-NTPOPTS=\"-c openntpd\"
+# 配置软件源
+echo "${MIRROR}/latest-stable/main" > /etc/apk/repositories
+echo "${MIRROR}/latest-stable/community" >> /etc/apk/repositories
+
+# 安装 alpine-base 和 openrc
+apk add --no-cache alpine-base openrc
+
+# 串口控制台
+echo 'ttyS2::respawn:/sbin/agetty -L 1500000 ttyS2 vt100' >> /etc/inittab
+echo 'ttyS2' >> /etc/securetty 2>/dev/null || true
+
+# Boot 级服务
+rc-update add bootmisc boot
+rc-update add syslog default
+rc-update add crond default
+
+# setup-alpine quick mode（最小化配置）
+cat > /answer_file << 'EOL'
+KEYMAPOPTS="us us"
+TIMEZONEOPTS="-z CST-8"
+APKREPOSOPTS="-r"
+SSHDOPTS="-c none"
+NTPOPTS="-c openntpd"
 EOL
-    setup-alpine -q -f /answer_file 2>/dev/null || true
-    rm -f /answer_file
-"
+setup-alpine -q -f /answer_file 2>/dev/null || true
+rm -f /answer_file
+CHROOTEOF
 
 # ---------- 第六步：执行 setup ----------
 echo "[alpine] 6. 执行 setup（安装包 / 配置 / 服务）..."
