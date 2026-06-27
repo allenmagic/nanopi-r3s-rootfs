@@ -2,9 +2,9 @@
 # Void Linux 包列表
 #
 # 语法：
-#   [pm] <package>     —— 包管理器安装（xbps-install）
-#   [dl] <package>     —— 下载安装（最新版）
-#   [dl:<ver>] <pkg>   —— 下载安装（指定版本）
+#   [pm] <package>                —— 包管理器安装（xbps-install）
+#   [dl@<url>] <binary_name>      —— 下载 URL 到 /usr/local/bin/<binary_name>
+#                                   自动解压 .tar.gz，查找二进制文件
 #
 # 三段式：base / router / landscape
 # ============================================================
@@ -22,7 +22,7 @@
 [pm] runit-nftables
 [pm] tailscale
 [pm] iproute2
-[dl:1.10.0] sing-box
-[dl]        cloudflared
+[dl@https://github.com/sagernet/sing-box/releases/download/v1.10.0/sing-box-1.10.0-linux-arm64.tar.gz] sing-box
+[dl@https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64] cloudflared
 
 # ========== landscape ==========

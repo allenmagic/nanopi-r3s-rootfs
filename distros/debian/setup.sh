@@ -56,21 +56,12 @@ if [ -f "${_PKG_LIST_}" ]; then
                 echo "[setup]   [pm] ${_pkg_}"
                 apt-get install -y --no-install-recommends "${_pkg_}"
                 ;;
-            '[dl:'*)
-                _ver_="${_line_%%\] *}"
-                _ver_="${_ver_#\[dl:}"
-                _pkg_="${_line_#*\] }"
-                echo "[setup]   [dl:${_ver_}] ${_pkg_}"
-                dl_sing_box "${_ver_}"
-                ;;
-            '[dl]'*)
-                _pkg_="${_line_#\[dl\] }"
-                echo "[setup]   [dl] ${_pkg_}"
-                case "${_pkg_}" in
-                    sing-box)    dl_sing_box ;;
-                    cloudflared) dl_cloudflared ;;
-                    tailscale)   dl_tailscale ;;
-                esac
+            '[dl@'*)
+                _line_="${_line_#\[dl@}"
+                _url_="${_line_%%\] *}"
+                _bin_="${_line_#*\] }"
+                echo "[setup]   [dl@${_bin_}]"
+                _dl_url "${_url_}" "${_bin_}"
                 ;;
         esac
     done < "${_PKG_LIST_}"
