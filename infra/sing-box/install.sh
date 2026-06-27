@@ -96,7 +96,36 @@ install_sing_box() {
     fi
 
     # ============================================================
-    #  3. cloudflared —— GitHub Release 直接二进制
+    #  3. tailscale —— 优先用包管理器，没有则下载静态二进制
+    #      Void/Alpine/Debian 在 package.list 已添加 tailscale，
+    #      Devuan 没有包，走静态下载（官方提供 arm64 静态 tar.gz）
+    # ============================================================
+    if command -v tailscale >/dev/null 2>&1; then
+        echo "[sing-box]   tailscale 已安装"
+    else
+        echo "[sing-box] 从 tailscale.com 下载静态二进制 ..."
+        _ts_url="https://pkgs.tailscale.com/stable/tailscale_latest_arm64.tgz"
+        _tmp_dir="/tmp/tailscale-$$"
+        mkdir -p "${_tmp_dir}"
+        if curl -fsSL "${_ts_url}" -o "${_tmp_dir}/tailscale.tgz"; then
+            tar xzf "${_tmp_dir}/tailscale.tgz" -C "${_tmp_dir}"
+            _ts_dir_="$(find "${_tmp_dir}" -maxdepth 1 -type d -name 'tailscale_*' | head -1)"
+            if [ -n "${_ts_dir_}" ]; then
+                cp -f "${_ts_dir_}/tailscale" /usr/local/bin/
+                cp -f "${_ts_dir_}/tailscaled" /usr/local/bin/
+                chmod +x /usr/local/bin/tailscale /usr/local/bin/tailscaled
+                echo "[sing-box]   tailscale $(tailscale version 2>/dev/null | head -1)"
+            else
+                echo "[sing-box] 警告: 解压后未找到 tailscale 二进制" >&2
+            fi
+        else
+            echo "[sing-box] 警告: tailscale 下载失败" >&2
+        fi
+        rm -rf "${_tmp_dir}"
+    fi
+
+    # ============================================================
+    #  4. cloudflared —— GitHub Release 直接二进制
     # ============================================================
     echo "[sing-box] 安装 cloudflared ..."
     _gh_release \
@@ -110,7 +139,7 @@ install_sing_box() {
     fi
 
     # ============================================================
-    #  4. 出厂默认配置 —— 从 config/ 部署所有配置文件
+    #  5. 出厂默认配置 —— 从 config/ 部署所有配置文件
     #      config/ 目录结构与 /etc/ 一致，递归复制即可
     #      根据 DISTRO 自动选择对应 init 系统的服务单元文件
     # ============================================================
