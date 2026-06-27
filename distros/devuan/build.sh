@@ -211,6 +211,7 @@ chmod +x "${ROOTFS}/setup.sh"
 chroot_run "${ROOTFS}" /usr/bin/env \
     DEBIAN_FRONTEND=noninteractive \
     DISTRO="${DISTRO}" \
+    INFRA="${INFRA:-sing-box}" \
     ROOT_PASSWORD="${ROOT_PASSWORD}" \
     HOSTNAME_VAL="${HOSTNAME_VAL}" \
     SUITE="${SUITE}" \

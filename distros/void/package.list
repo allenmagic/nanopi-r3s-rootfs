@@ -16,13 +16,13 @@
 [pm] ncurses
 [pm] ncurses-base
 
-# ========== router ==========
+# ========== sing-box ==========
 [pm] dnsmasq
 [pm] nftables
 [pm] runit-nftables
 [pm] tailscale
 [pm] iproute2
-[dl@https://github.com/sagernet/sing-box/releases/download/v1.10.0/sing-box-1.10.0-linux-arm64.tar.gz] sing-box
-[dl@https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64] cloudflared
+[pm] cloudflared
+[pm] sing-box
 
 # ========== landscape ==========

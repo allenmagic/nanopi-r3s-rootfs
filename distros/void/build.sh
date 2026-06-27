@@ -120,6 +120,7 @@ cp -f "${SETUP_SCRIPT}" "${ROOTFS}/setup.sh"
 chmod +x "${ROOTFS}/setup.sh"
 chroot_run "${ROOTFS}" /usr/bin/env \
     DISTRO="${DISTRO}" \
+    INFRA="${INFRA:-sing-box}" \
     ROOT_PASSWORD="${ROOT_PASSWORD}" \
     HOSTNAME_VAL="${HOSTNAME_VAL}" \
     REPO="${REPO}" \

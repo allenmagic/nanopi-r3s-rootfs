@@ -30,21 +30,18 @@ if [ -f "${_PKG_LIST_}" ]; then
                 echo "[setup] --- 段: base ---"
                 continue
                 ;;
-            '# ========== router'*)
-                _section_="router"
-                echo "[setup] --- 段: router ---"
+            '# ========== sing-box'*)
+                case ",${INFRA:-sing-box}," in *",sing-box,"*) _section_="packages" ;; *) _section_="skip" ;; esac
                 continue
                 ;;
             '# ========== landscape'*)
-                _section_="landscape"
-                echo "[setup] --- 段: landscape ---"
+                case ",${INFRA:-sing-box}," in *",landscape,"*) _section_="packages" ;; *) _section_="skip" ;; esac
                 continue
                 ;;
             '#'*) continue ;;  # 其他注释行跳过
         esac
 
-        # 跳过非当前 section 的行（landscape 暂不处理）
-        [ "${_section_}" = "landscape" ] && continue
+        [ "${_section_}" = "skip" ] && continue
 
         # 解析安装标记
         case "${_line_}" in
@@ -70,24 +67,32 @@ fi
 #  2. 部署配置文件
 # ============================================================
 echo "[setup] === 部署出厂配置 ==="
-_CFG_="/infra/sing-box/config"
-
-# 递归复制配置到 /etc/（不含 init/ 子目录）
-for _f_ in "${_CFG_}"/*; do
-    _base_="$(basename "${_f_}")"
-    [ "${_base_}" = "init" ] && continue
-    cp -r "${_f_}" /etc/
+# 遍历 INFRA 组件，部署各自的 config
+_OLD_IFS_="${IFS}"; IFS=","
+for _comp_ in ${INFRA:-sing-box}; do
+    IFS="${_OLD_IFS_}"
+    _comp_="$(echo "${_comp_}" | tr -d '[:space:]')"
+    [ -z "${_comp_}" ] && continue
+    _CFG_="/infra/${_comp_}/config"
+    [ ! -d "${_CFG_}" ] && continue
+    echo "[setup]   部署 /infra/${_comp_}/config/ ..."
+    for _f_ in "${_CFG_}"/*; do
+        [ ! -e "${_f_}" ] && continue
+        _base_="$(basename "${_f_}")"
+        [ "${_base_}" = "init" ] && continue
+        cp -r "${_f_}" /etc/
+    done
+    # 部署 runit 服务文件
+    if [ -d "${_CFG_}/init/runit" ]; then
+        for _sv_dir_ in "${_CFG_}/init/runit/"*/; do
+            [ -d "${_sv_dir_}" ] && cp -r "${_sv_dir_}" /etc/sv/
+        done
+    fi
 done
+IFS="${_OLD_IFS_}"
 
 # 清理文档文件
 find /etc \( -name '*.md' -o -name '*.example' \) -exec rm -f {} + 2>/dev/null || true
-
-# 部署 runit 服务文件
-if [ -d "${_CFG_}/init/runit" ]; then
-    for _sv_dir_ in "${_CFG_}/init/runit/"*/; do
-        [ -d "${_sv_dir_}" ] && cp -r "${_sv_dir_}" /etc/sv/
-    done
-fi
 
 # 统一路径：包管理器装的 sing-box 在 /usr/bin/，ln -s 到 /usr/local/bin/
 if [ ! -e /usr/local/bin/sing-box ] && [ -x /usr/bin/sing-box ]; then

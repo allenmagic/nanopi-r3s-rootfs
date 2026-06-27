@@ -35,20 +35,18 @@ if [ -f "${_PKG_LIST_}" ]; then
                 echo "[setup] --- 段: base ---"
                 continue
                 ;;
-            '# ========== router'*)
-                _section_="router"
-                echo "[setup] --- 段: router ---"
+            '# ========== sing-box'*)
+                case ",${INFRA:-sing-box}," in *",sing-box,"*) _section_="packages" ;; *) _section_="skip" ;; esac
                 continue
                 ;;
             '# ========== landscape'*)
-                _section_="landscape"
-                echo "[setup] --- 段: landscape ---"
+                case ",${INFRA:-sing-box}," in *",landscape,"*) _section_="packages" ;; *) _section_="skip" ;; esac
                 continue
                 ;;
             '#'*) continue ;;
         esac
 
-        [ "${_section_}" = "landscape" ] && continue
+        [ "${_section_}" = "skip" ] && continue
 
         case "${_line_}" in
             '[pm]'*)
@@ -73,20 +71,27 @@ fi
 #  2. 部署配置文件
 # ============================================================
 echo "[setup] === 部署出厂配置 ==="
-_CFG_="/infra/sing-box/config"
-
-for _f_ in "${_CFG_}"/*; do
-    _base_="$(basename "${_f_}")"
-    [ "${_base_}" = "init" ] && continue
-    cp -r "${_f_}" /etc/
+_OLD_IFS_="${IFS}"; IFS=","
+for _comp_ in ${INFRA:-sing-box}; do
+    IFS="${_OLD_IFS_}"
+    _comp_="$(echo "${_comp_}" | tr -d '[:space:]')"
+    [ -z "${_comp_}" ] && continue
+    _CFG_="/infra/${_comp_}/config"
+    [ ! -d "${_CFG_}" ] && continue
+    echo "[setup]   部署 /infra/${_comp_}/config/ ..."
+    for _f_ in "${_CFG_}"/*; do
+        [ ! -e "${_f_}" ] && continue
+        _base_="$(basename "${_f_}")"
+        [ "${_base_}" = "init" ] && continue
+        cp -r "${_f_}" /etc/
+    done
+    if [ -d "${_CFG_}/init/systemd" ]; then
+        cp -f "${_CFG_}/init/systemd/"* /etc/systemd/system/ 2>/dev/null || true
+    fi
 done
+IFS="${_OLD_IFS_}"
 
 find /etc \( -name '*.md' -o -name '*.example' \) -exec rm -f {} + 2>/dev/null || true
-
-# 部署 systemd unit 文件
-if [ -d "${_CFG_}/init/systemd" ]; then
-    cp -f "${_CFG_}/init/systemd/"* /etc/systemd/system/ 2>/dev/null || true
-fi
 
 if [ ! -e /usr/local/bin/sing-box ] && [ -x /usr/bin/sing-box ]; then
     ln -s /usr/bin/sing-box /usr/local/bin/sing-box

@@ -16,7 +16,7 @@
 [pm] ncurses-bin
 [pm] ncurses-base
 
-# ========== router ==========
+# ========== sing-box ==========
 [pm] dnsmasq
 [pm] nftables
 [dl@https://pkgs.tailscale.com/stable/tailscale_latest_arm64.tgz] tailscale
