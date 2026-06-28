@@ -27,4 +27,8 @@ mnt /dev/pts "$ROOTFS/dev/pts" --bind
 sudo cp /etc/resolv.conf "$ROOTFS/etc/resolv.conf" 2>/dev/null || true
 
 echo "==> 进入 chroot（exit 后跑 chroot-exit.sh $ROOTFS 清理）"
-sudo chroot "$ROOTFS" "$SHELL_IN"
+sudo chroot "$ROOTFS" /usr/bin/env -i \
+  PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+  TERM="$TERM" \
+  HOME=/root \
+  "$SHELL_IN" -i
