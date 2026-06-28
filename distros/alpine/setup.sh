@@ -111,6 +111,9 @@ echo "[setup] === 系统设置 ==="
 echo "[setup] 设置 root 密码 ..."
 echo "root:${ROOT_PASSWORD}" | chpasswd
 
+echo "[setup] 设置默认 shell 为 bash ..."
+/usr/sbin/usermod -s /bin/bash root
+
 echo "[setup] 设置主机名：${HOSTNAME_VAL}"
 echo "${HOSTNAME_VAL}" > /etc/hostname
 if ! grep -q "127.0.1.1[[:space:]]*${HOSTNAME_VAL}" /etc/hosts 2>/dev/null; then
