@@ -65,7 +65,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             xz-utils zstd file binutils \
-            curl ca-certificates \
+            curl ca-certificates wget \
             mmdebstrap debootstrap debian-archive-keyring \
             gpgv
 
