@@ -45,7 +45,7 @@ sudo REPO=mirror-alias ROOT_PASSWORD=secret \
 | **Void Linux** | glibc | runit | ✅ 成熟 | [查看](distros/void/README.md) |
 | **Devuan** | glibc | sysvinit | ✅ 成熟 | [查看](distros/devuan/README.md) |
 | **Debian** | glibc | systemd | ✅ 成熟 | [查看](distros/debian/README.md) |
-| **Alpine Linux** | musl | OpenRC | ✅ 可用 | [查看](distros/alpine/README.md) |
+| **Alpine Linux** | musl | OpenRC | ✅ 成熟 | [查看](distros/alpine/README.md) |
 
 构建产物命名规则：`{distro}-{infra}-aarch64-rootfs.tar.xz`，如 `void-sing-box-aarch64-rootfs.tar.xz`。
 
@@ -65,6 +65,41 @@ sudo INFRA=landscape ./distros/void/build.sh
 |----------|------|
 | `sing-box` | dnsmasq + nftables + tailscale + sing-box + cloudflared |
 | `landscape` | （待定） |
+
+## 构建环境变量
+
+所有变量均可选，未设时使用默认值。
+
+| 变量 | 默认值（Void） | 说明 |
+|------|---------------|------|
+| `REPO` | 官方源 | 镜像别名（`tuna` `tsinghua` `aliyun`）或完整 URL |
+| `BUILD_BASE` | `build/<distro>` | 构建输出目录 |
+| `ROOTFS` | `build/<distro>/<distro>-rootfs` | rootfs 具体路径 |
+| `CACHE_DIR` | `build/<distro>/cache` | 下载缓存目录 |
+| `ARCH` | `aarch64` | 目标架构 |
+| `INFRA` | `sing-box` | 路由组件选择，参见上节 |
+| `PACK` | `0` | `1` 时构建后打包 `.tar.xz` |
+| `ROOT_PASSWORD` | `root` | root 用户密码 |
+| `HOSTNAME_VAL` | `nanopi-r3s-<distro>` | 主机名 |
+
+### 密钥注入（可选）
+
+以下变量全部可选，未设则跳过对应的密钥部署。
+
+| 变量 | 注入到 |
+|------|--------|
+| `SSH_PRIVATE_KEY` | `/root/.ssh/id_ed25519` |
+| `SSH_PUBLIC_KEY` | `/root/.ssh/id_ed25519.pub` |
+| `TAILSCALE_AUTH_KEY` | `/etc/tailscale/authkey` |
+| `HEADSCALE_AUTH_KEY` | `sing-box config.json` 中的 `__ROUTER_HEADSCALE_AUTH_KEY__` 占位符 |
+
+本地构建示例：
+
+```bash
+sudo TAILSCALE_AUTH_KEY=tskey-auth-xxx PACK=1 ./distros/void/build.sh
+```
+
+CI 构建时对应 GitHub Actions Secrets，由 workflow 自动注入。
 
 ## 项目结构
 
@@ -88,7 +123,8 @@ sudo INFRA=landscape ./distros/void/build.sh
 │       └── systemd/
 └── tools/                  # 工具脚本
     ├── chroot-in.sh        #  交互式 chroot 进入
-    └── chroot-exit.sh      #  chroot 挂载清理
+    ├── chroot-exit.sh      #  chroot 挂载清理
+    └── inject-secrets.sh   #  密钥注入（write → ROOTFS，deploy → 系统）
 ```
 
 ## License
