@@ -112,7 +112,8 @@ echo "[setup] 设置 root 密码 ..."
 echo "root:${ROOT_PASSWORD}" | chpasswd
 
 echo "[setup] 设置默认 shell 为 bash ..."
-/usr/sbin/usermod -s /bin/bash root
+# Alpine 无 usermod，直接改 /etc/passwd
+sed -i 's|^root:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*$|root:x:0:0:root:/root:/bin/bash|' /etc/passwd
 
 echo "[setup] 设置主机名：${HOSTNAME_VAL}"
 echo "${HOSTNAME_VAL}" > /etc/hostname
