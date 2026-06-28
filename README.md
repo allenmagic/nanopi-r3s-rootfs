@@ -40,12 +40,12 @@ sudo REPO=mirror-alias ROOT_PASSWORD=secret \
 
 ## 支持的发型版
 
-| 发行版 | C 库 | 状态 | 构建说明 |
-|--------|------|------|---------|
-| **Void Linux** | glibc | ✅ 成熟 | [查看](distros/void/README.md) |
-| **Devuan** | glibc | ✅ 成熟 | [查看](distros/devuan/README.md) |
-| **Debian** | glibc | ✅ 成熟 | [查看](distros/debian/README.md) |
-| **Alpine Linux** | musl | ✅ 可用 | [查看](distros/alpine/README.md) |
+| 发行版 | C 库 | Init 工具 | 状态 | 构建说明 |
+|--------|------|-----------|------|---------|
+| **Void Linux** | glibc | runit | ✅ 成熟 | [查看](distros/void/README.md) |
+| **Devuan** | glibc | sysvinit | ✅ 成熟 | [查看](distros/devuan/README.md) |
+| **Debian** | glibc | systemd | ✅ 成熟 | [查看](distros/debian/README.md) |
+| **Alpine Linux** | musl | OpenRC | ✅ 可用 | [查看](distros/alpine/README.md) |
 
 构建产物命名规则：`{distro}-{infra}-aarch64-rootfs.tar.xz`，如 `void-sing-box-aarch64-rootfs.tar.xz`。
 

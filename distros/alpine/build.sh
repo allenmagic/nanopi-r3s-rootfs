@@ -47,14 +47,12 @@ WORKDIR="$(dirname "${ROOTFS}")"
 
 # ---------- 提权前：以普通用户创建构建目录树 ----------
 if [ "${EUID}" -ne 0 ]; then
-    mkdir -p "${BUILD_BASE}" "${WORKDIR}"
+    mkdir -p "${BUILD_BASE}" "${CACHE_DIR}" "${WORKDIR}"
 fi
 
 # ---------- 权限 ----------
 [ "${EUID}" -eq 0 ] || exec sudo -E "$0" "$@"
 
-# root 态：补建缓存目录
-mkdir -p "${CACHE_DIR}"
 [ -f "${SETUP_SCRIPT}" ] || { echo "缺少 ${SETUP_SCRIPT}" >&2; exit 1; }
 
 # 护栏
@@ -67,9 +65,19 @@ esac
 # ---------- 跨架构预检 ----------
 HOST_ARCH="$(uname -m)"
 if [ "${HOST_ARCH}" != "aarch64" ] && [ "${HOST_ARCH}" != "arm64" ]; then
-    if [ ! -e /proc/sys/fs/binfmt_misc/qemu-aarch64 ]; then
-        echo "错误：宿主架构为 ${HOST_ARCH}，但未注册 aarch64 的 binfmt/qemu。" >&2
+    BINFMT=/proc/sys/fs/binfmt_misc/qemu-aarch64
+    if [ ! -e "${BINFMT}" ] || ! grep -q '^enabled' "${BINFMT}" 2>/dev/null; then
+        echo "错误：宿主架构为 ${HOST_ARCH}，但未启用 aarch64 的 binfmt/qemu。" >&2
+        echo "构建 arm64 rootfs 将失败。请先执行：" >&2
+        echo "  sudo apt-get install -y qemu-user-static binfmt-support" >&2
+        echo "  docker run --rm --privileged tonistiigi/binfmt --install arm64" >&2
+        echo "或在原生 aarch64 环境（如 GitHub ubuntu-24.04-arm runner）构建。" >&2
         exit 1
+    fi
+    if ! grep -q 'flags:.*F' "${BINFMT}" 2>/dev/null; then
+        echo "警告：qemu-aarch64 未带 F flag，跨架构 chroot 可能找不到解释器。" >&2
+        echo "建议用 tonistiigi/binfmt 重新注册：" >&2
+        echo "  docker run --rm --privileged tonistiigi/binfmt --install arm64" >&2
     fi
 fi
 echo "[alpine] 跨架构预检通过（宿主 ${HOST_ARCH}）"
@@ -77,13 +85,11 @@ echo "[alpine] 跨架构预检通过（宿主 ${HOST_ARCH}）"
 # ---------- 第一步：下载 alpine-minirootfs ----------
 echo "[alpine] 1. 解析最新 minirootfs 版本 ..."
 BASE_URL="${MIRROR}/latest-stable/releases/${ARCH}"
-LATEST_YAML="$(curl -fsSL "${BASE_URL}/latest-releases.yaml" 2>/dev/null || true)"
+LATEST_YAML="$(wget -qO- "${BASE_URL}/latest-releases.yaml" 2>/dev/null || true)"
 FILENAME="$(echo "${LATEST_YAML}" | grep -oE 'alpine-minirootfs-[0-9.]+-'"${ARCH}"'\.tar\.gz' | head -n1)"
 [ -n "${FILENAME}" ] || { echo "错误：无法解析 minirootfs 文件名" >&2; exit 1; }
 echo "[alpine]   最新: ${FILENAME}"
 
-CACHE_DIR="${BUILD_BASE}/cache"
-mkdir -p "${CACHE_DIR}"
 TARBALL="${CACHE_DIR}/${FILENAME}"
 
 if [ ! -f "${TARBALL}" ]; then
@@ -118,7 +124,7 @@ cp -r "${REPO_ROOT}/infra" "${ROOTFS}/infra"
 cp -f "${SCRIPT_DIR}/package.list" "${ROOTFS}/package.list"
 cp -f "${SCRIPT_DIR}/service.sh" "${ROOTFS}/service.sh"
 
-# ---------- 第四步：安装基础系统（alpine-base + openrc + 基础配置）----------
+# ---------- 第四步：安装基础系统（openrc + 软件源）----------
 echo "[alpine] 4. 安装基础系统 ..."
 chroot_run "${ROOTFS}" /bin/sh << CHROOTEOF
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -131,14 +137,10 @@ echo "${MIRROR}/latest-stable/community" >> /etc/apk/repositories
 # 安装 openrc（不装 alpine-base，避免触发 setup-alpine）
 apk add --no-cache openrc
 
-# 串口控制台
-echo 'ttyS2::respawn:/sbin/agetty -L 1500000 ttyS2 vt100' >> /etc/inittab
-echo 'ttyS2' >> /etc/securetty 2>/dev/null || true
-
 CHROOTEOF
 
-# ---------- 第六步：执行 setup ----------
-echo "[alpine] 6. 执行 setup（安装包 / 配置 / 服务）..."
+# ---------- 第五步：执行 setup ----------
+echo "[alpine] 5. 执行 setup（安装包 / 配置 / 服务）..."
 cp -f "${SETUP_SCRIPT}" "${ROOTFS}/setup.sh"
 chmod +x "${ROOTFS}/setup.sh"
 chroot_run "${ROOTFS}" /usr/bin/env \
@@ -162,6 +164,6 @@ if [[ "${PACK}" == "1" ]]; then
     trap '' EXIT
     OUTPUT="${OUTPUT:-${ROOTFS%/}-minimal.tar.xz}"
     OUTPUT="$(readlink -m "${OUTPUT}")"
-    echo "[alpine] 7. 调用打包：lib/slim-rootfs.sh"
+    echo "[alpine] 6. 调用打包：lib/slim-rootfs.sh"
     "${REPO_ROOT}/lib/slim-rootfs.sh" "${ROOTFS}" "${OUTPUT}"
 fi

@@ -14,8 +14,8 @@ sudo REPO=aliyun PACK=1 ./distros/alpine/build.sh
 sudo REPO=tuna PACK=1 ./distros/alpine/build.sh
 
 # 自定义参数
-sudo ROOT_PASSWORD=secret \
-  ./distros/alpine/build.sh
+sudo BUILD_BASE=/tmp/my-build ROOT_PASSWORD=secret \
+  HOSTNAME_VAL=my-router ./distros/alpine/build.sh
 ```
 
 ## 包列表

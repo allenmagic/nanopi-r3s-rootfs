@@ -112,8 +112,9 @@ echo "[setup] 设置 root 密码 ..."
 echo "root:${ROOT_PASSWORD}" | chpasswd
 
 echo "[setup] 设置默认 shell 为 bash ..."
-# Alpine 无 usermod，直接改 /etc/passwd
-sed -i 's|^root:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*$|root:x:0:0:root:/root:/bin/bash|' /etc/passwd
+grep -qx '/bin/bash' /etc/shells 2>/dev/null || echo '/bin/bash' >> /etc/shells
+chsh -s /bin/bash root 2>/dev/null || \
+    sed -i '/^root:/ s|:[^:]*$|:/bin/bash|' /etc/passwd
 
 echo "[setup] 设置主机名：${HOSTNAME_VAL}"
 echo "${HOSTNAME_VAL}" > /etc/hostname
@@ -130,7 +131,6 @@ echo "[setup] 启用基础服务 ..."
 rc-update add sysctl boot 2>/dev/null || true
 rc-update add local default 2>/dev/null || true
 rc-update add networking default 2>/dev/null || true
-rc-update add sshd default 2>/dev/null || true
 
 # ============================================================
 #  4. 启用路由器服务
