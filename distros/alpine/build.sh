@@ -94,7 +94,7 @@ TARBALL="${CACHE_DIR}/${FILENAME}"
 
 if [ ! -f "${TARBALL}" ]; then
     echo "[alpine]   下载 ${BASE_URL}/${FILENAME} ..."
-    wget -qO "${TARBALL}" "${BASE_URL}/${FILENAME}"
+    wget -t 3 -T 30 -qO "${TARBALL}" "${BASE_URL}/${FILENAME}" || { echo "[alpine]   错误：下载失败，可尝试换镜像源 REPO=tuna" >&2; exit 1; }
     wget -qO "${TARBALL}.sha256" "${BASE_URL}/${FILENAME}.sha256" 2>/dev/null || true
     if [ -f "${TARBALL}.sha256" ]; then
         (cd "${CACHE_DIR}" && sha256sum -c "${FILENAME}.sha256" 2>/dev/null) || echo "[alpine]   警告：sha256 校验跳过" >&2
