@@ -58,7 +58,7 @@ jobs:
       PACK: "1"
       ROOT_PASSWORD: ${{ secrets.ROOT_PASSWORD }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install host build dependencies
         run: |
@@ -94,7 +94,7 @@ jobs:
           echo "sha=${out}.sha256" >> "$GITHUB_OUTPUT"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ${{ matrix.distro }}-${{ matrix.infra }}-aarch64-rootfs
           path: |
@@ -109,7 +109,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     steps:
       - name: Download all build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: dist
           merge-multiple: true
@@ -119,7 +119,7 @@ jobs:
         run: echo "tag=nanopi-r3s-rootfs-$(date +%Y%m%d)" >> "$GITHUB_OUTPUT"
 
       - name: Create / Update Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: ${{ steps.tag.outputs.tag }}
