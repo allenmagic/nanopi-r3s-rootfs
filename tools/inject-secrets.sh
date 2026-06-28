@@ -1,6 +1,37 @@
 #!/bin/sh
+#
+# inject-secrets.sh —— 密钥注入脚本（CI/CD + 本地部署通用）
+#
+#   两种模式：
+#     inject-secrets.sh write <rootfs>     宿主机执行，从环境变量读取密钥，写入 rootfs 临时目录
+#     inject-secrets.sh                      chroot 内执行，从临时目录读取密钥，部署到系统
+#
 set -e
 
+CMD="${1:-deploy}"
+
+# ============================================================
+#  模式一：write —— 从环境变量写入 rootfs 临时目录
+# ============================================================
+if [ "$CMD" = "write" ]; then
+    ROOTFS="${2:?缺少 rootfs 路径}"
+    SECRET_DIR="${ROOTFS}/opt/installer/tmp"
+
+    mkdir -p "${SECRET_DIR}"
+
+    [ -n "${SSH_PRIVATE_KEY:-}" ]   && printf '%s' "${SSH_PRIVATE_KEY}"   > "${SECRET_DIR}/ssh_private_key"
+    [ -n "${SSH_PUBLIC_KEY:-}" ]    && printf '%s' "${SSH_PUBLIC_KEY}"    > "${SECRET_DIR}/ssh_public_key"
+    [ -n "${SSH_KNOWN_HOSTS:-}" ]   && printf '%s' "${SSH_KNOWN_HOSTS}"   > "${SECRET_DIR}/ssh_known_hosts"
+    [ -n "${TAILSCALE_AUTH_KEY:-}" ] && printf '%s' "${TAILSCALE_AUTH_KEY}" > "${SECRET_DIR}/tailscale_authkey"
+    [ -n "${HEADSCALE_AUTH_KEY:-}" ] && printf '%s' "${HEADSCALE_AUTH_KEY}" > "${SECRET_DIR}/headscale_authkey"
+
+    echo "密钥文件已写入 ${SECRET_DIR}"
+    exit 0
+fi
+
+# ============================================================
+#  模式二：deploy —— 从临时目录部署到系统（chroot 内）
+# ============================================================
 echo "======================================================"
 echo "  密钥注入脚本（仅用于 CI/CD 构建）"
 echo "======================================================"
