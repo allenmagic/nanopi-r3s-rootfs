@@ -21,7 +21,6 @@ if [ "$CMD" = "write" ]; then
 
     [ -n "${SSH_PRIVATE_KEY:-}" ]   && printf '%s' "${SSH_PRIVATE_KEY}"   > "${SECRET_DIR}/ssh_private_key"
     [ -n "${SSH_PUBLIC_KEY:-}" ]    && printf '%s' "${SSH_PUBLIC_KEY}"    > "${SECRET_DIR}/ssh_public_key"
-    [ -n "${SSH_KNOWN_HOSTS:-}" ]   && printf '%s' "${SSH_KNOWN_HOSTS}"   > "${SECRET_DIR}/ssh_known_hosts"
     [ -n "${TAILSCALE_AUTH_KEY:-}" ] && printf '%s' "${TAILSCALE_AUTH_KEY}" > "${SECRET_DIR}/tailscale_authkey"
     [ -n "${HEADSCALE_AUTH_KEY:-}" ] && printf '%s' "${HEADSCALE_AUTH_KEY}" > "${SECRET_DIR}/headscale_authkey"
 
