@@ -19,6 +19,12 @@ on:
         required: true
         default: sing-box
         options: [all, sing-box, landscape]
+      mirror:
+        description: "镜像源"
+        type: choice
+        required: true
+        default: default
+        options: [default, tuna]
 
 permissions:
   contents: write
@@ -56,6 +62,7 @@ jobs:
       DISTRO: ${{ matrix.distro }}
       INFRA: ${{ matrix.infra }}
       PACK: "1"
+      REPO: ${{ inputs.mirror }}
       ROOT_PASSWORD: ${{ secrets.ROOT_PASSWORD }}
       SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
       SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
