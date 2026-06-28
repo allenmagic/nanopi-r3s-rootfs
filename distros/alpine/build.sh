@@ -45,10 +45,8 @@ ROOTFS="$(readlink -m "${ROOTFS}")"
 CACHE_DIR="$(readlink -m "${CACHE_DIR}")"
 WORKDIR="$(dirname "${ROOTFS}")"
 
-# ---------- 提权前：以普通用户创建构建目录树 ----------
-if [ "${EUID}" -ne 0 ]; then
-    mkdir -p "${BUILD_BASE}" "${CACHE_DIR}" "${WORKDIR}"
-fi
+# ---------- 提权前：创建构建目录树（属主归调用者） ----------
+mkdir -p "${BUILD_BASE}" "${CACHE_DIR}" "${WORKDIR}"
 
 # ---------- 权限 ----------
 [ "${EUID}" -eq 0 ] || exec sudo -E "$0" "$@"
