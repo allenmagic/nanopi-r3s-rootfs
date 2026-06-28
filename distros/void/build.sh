@@ -111,8 +111,9 @@ chroot_enter "${ROOTFS}"
 echo "[void] 3+. 拷贝安装框架到 rootfs ..."
 cp -f "${REPO_ROOT}/lib/download-helpers.sh" "${ROOTFS}/download-helpers.sh"
 cp -r "${REPO_ROOT}/infra" "${ROOTFS}/infra"
-	# 从环境变量注入敏感配置（未设则保留占位符）
-	[ -n "${TS_AUTH_KEY:-}" ]     && find "${ROOTFS}/infra" -name tailscaled.log.conf -exec sed -i "s|__TS_AUTH_KEY__|${TS_AUTH_KEY}|g" {} +
+	mkdir -p "${ROOTFS}/opt/installer/tmp"
+	[ -n "${TS_AUTH_KEY:-}" ] && printf '%s' "${TS_AUTH_KEY}" > "${ROOTFS}/opt/installer/tmp/tailscale_log_private_id"
+	cp -f "${REPO_ROOT}/inject-secrets.sh" "${ROOTFS}/inject-secrets.sh"
 cp -f "${SCRIPT_DIR}/package.list" "${ROOTFS}/package.list"
 cp -f "${SCRIPT_DIR}/service.sh" "${ROOTFS}/service.sh"
 
@@ -128,6 +129,7 @@ chroot_run "${ROOTFS}" /usr/bin/env \
     REPO="${REPO}" \
     /bin/sh /setup.sh
 rm -f "${ROOTFS}/setup.sh"
+rm -f "${ROOTFS}/inject-secrets.sh"
 rm -f "${ROOTFS}/download-helpers.sh"
 rm -f "${ROOTFS}/package.list"
 rm -f "${ROOTFS}/service.sh"
