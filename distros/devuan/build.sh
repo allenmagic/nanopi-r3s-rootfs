@@ -203,7 +203,7 @@ cp -f "${REPO_ROOT}/lib/download-helpers.sh" "${ROOTFS}/download-helpers.sh"
 cp -r "${REPO_ROOT}/infra" "${ROOTFS}/infra"
 	mkdir -p "${ROOTFS}/opt/installer/tmp"
 	[ -n "${TS_AUTH_KEY:-}" ] && printf '%s' "${TS_AUTH_KEY}" > "${ROOTFS}/opt/installer/tmp/tailscale_log_private_id"
-	cp -f "${REPO_ROOT}/inject-secrets.sh" "${ROOTFS}/inject-secrets.sh"
+	cp -f "${REPO_ROOT}/tools/inject-secrets.sh" "${ROOTFS}/inject-secrets.sh"
 cp -f "${SCRIPT_DIR}/package.list" "${ROOTFS}/package.list"
 cp -f "${SCRIPT_DIR}/service.sh" "${ROOTFS}/service.sh"
 
