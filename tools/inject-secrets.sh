@@ -10,7 +10,7 @@ SECRET_DIR="/opt/installer/tmp"
 # ==========================================
 # SSH 密钥注入
 # ==========================================
-echo "[1/3] SSH 密钥注入..."
+echo "[1/2] SSH 密钥注入..."
 
 if [ -f ${SECRET_DIR}/ssh_private_key ]; then
     mkdir -p /root/.ssh
@@ -55,7 +55,7 @@ fi
 # ==========================================
 # Tailscale / Headscale 密钥注入
 # ==========================================
-echo "[2/3] Tailscale / Headscale 密钥注入..."
+echo "[2/2] Tailscale / Headscale 密钥注入..."
 
 # 1) Tailscale: /etc/tailscale/config.json -> authKey=file:/etc/tailscale/authkey
 if [ -f "${SECRET_DIR}/tailscale_authkey" ]; then
@@ -82,24 +82,11 @@ else
     echo "  → 未找到 ${SECRET_DIR}/headscale_authkey，跳过"
 fi
 
-# 3) tailscaled.log.conf: tailnode.log.tailscale.io 上报密钥
-if [ -f "${SECRET_DIR}/tailscale_log_private_id" ]; then
-    if [ -f /etc/sing-box/headscale/tailscaled.log.conf ]; then
-        TS_LOG_KEY="$(cat "${SECRET_DIR}/tailscale_log_private_id")"
-        TS_LOG_KEY_ESCAPED="$(printf '%s' "$TS_LOG_KEY" | sed -e 's/[\\/&|]/\\&/g')"
-        sed -i "s|__TS_AUTH_KEY__|${TS_LOG_KEY_ESCAPED}|g" /etc/sing-box/headscale/tailscaled.log.conf
-        echo "  → tailscale log key 已注入"
-    else
-        echo "  → 未找到 /etc/sing-box/headscale/tailscaled.log.conf，跳过"
-    fi
-else
-    echo "  → 未找到 ${SECRET_DIR}/tailscale_log_private_id，跳过"
-fi
 
 # ==========================================
 # 清理临时文件
 # ==========================================
-echo "[3/3] 清理临时文件..."
+echo "清理临时文件..."
 rm -rf ${SECRET_DIR}
 echo "  → 临时文件已清理"
 
