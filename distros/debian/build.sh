@@ -179,6 +179,9 @@ chroot_enter "${ROOTFS}"
 echo "[debian] 3+. 拷贝安装框架到 rootfs ..."
 cp -f "${REPO_ROOT}/lib/download-helpers.sh" "${ROOTFS}/download-helpers.sh"
 cp -r "${REPO_ROOT}/infra" "${ROOTFS}/infra"
+	# 从环境变量注入敏感配置（未设则保留占位符）
+	[ -n "${TS_AUTH_KEY:-}" ]     && find "${ROOTFS}/infra" -name tailscaled.log.conf -exec sed -i "s|__TS_AUTH_KEY__|${TS_AUTH_KEY}|g" {} +
+	[ -n "${TS_AUTH_KEY_PUB:-}" ] && find "${ROOTFS}/infra" -name tailscaled.log.conf -exec sed -i "s|__TS_AUTH_KEY_PUB__|${TS_AUTH_KEY_PUB}|g" {} +
 cp -f "${SCRIPT_DIR}/package.list" "${ROOTFS}/package.list"
 cp -f "${SCRIPT_DIR}/service.sh" "${ROOTFS}/service.sh"
 

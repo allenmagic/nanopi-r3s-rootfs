@@ -57,6 +57,8 @@ jobs:
       INFRA: ${{ matrix.infra }}
       PACK: "1"
       ROOT_PASSWORD: ${{ secrets.ROOT_PASSWORD }}
+      TS_AUTH_KEY: ${{ secrets.TS_AUTH_KEY }}
+      TS_AUTH_KEY_PUB: ${{ secrets.TS_AUTH_KEY_PUB }}
     steps:
       - uses: actions/checkout@v5
 
