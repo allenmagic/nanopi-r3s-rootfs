@@ -1,0 +1,187 @@
+#!/usr/bin/env bash
+#
+# distros/gentoo/build.sh —— 构建 Gentoo aarch64 rootfs
+# 从 Gentoo distfiles 下载 stage3-arm64-openrc tarball 作为构建环境，
+# 在其中用 ROOT= emerge 安装包到干净的目标 rootfs
+# 产物落在仓库内 build/gentoo/（被 .gitignore 排除）
+#
+set -euo pipefail
+
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"     # → distros/gentoo
+REPO_ROOT="$(readlink -f "${SCRIPT_DIR}/../..")"  # → 仓库根
+source "${REPO_ROOT}/lib/chroot-helper.sh"
+
+# ---------- 可配置参数 ----------
+DISTRO="gentoo"
+BUILD_ROOT="${BUILD_ROOT:-${REPO_ROOT}/build}"
+BUILD_BASE="${BUILD_BASE:-${BUILD_ROOT}/${DISTRO}}"
+STAGE3_DIR="${STAGE3_DIR:-${BUILD_BASE}/stage3}"         # stage3 解压目录（构建环境）
+ROOTFS="${ROOTFS:-${BUILD_BASE}/gentoo-rootfs}"         # 最终产物目录（轻量 rootfs）
+CACHE_DIR="${CACHE_DIR:-${BUILD_BASE}/cache}"
+MIRROR="${MIRROR:-https://distfiles.gentoo.org/releases/arm64/autobuilds}"
+ARCH="${ARCH:-arm64}"
+ROOT_PASSWORD="${ROOT_PASSWORD:-root}"
+HOSTNAME_VAL="${HOSTNAME_VAL:-nanopi-r3s-gentoo}"
+SETUP_SCRIPT="${SCRIPT_DIR}/setup.sh"
+PACK="${PACK:-0}"
+
+# ---------- 镜像源映射 ----------
+declare -A MIRRORS
+MIRRORS["default"]="https://distfiles.gentoo.org/releases/arm64/autobuilds"
+MIRRORS["tuna"]="https://mirrors.tuna.tsinghua.edu.cn/gentoo/releases/arm64/autobuilds"
+MIRRORS["tsinghua"]="https://mirrors.tuna.tsinghua.edu.cn/gentoo/releases/arm64/autobuilds"
+
+_REPO_IN="${REPO:-default}"
+if [[ "${_REPO_IN}" =~ ^https?:// ]]; then
+    MIRROR="${_REPO_IN}"
+else
+    MIRROR="${MIRRORS[${_REPO_IN}]:-${MIRRORS[default]}}"
+fi
+unset _REPO_IN
+
+# ---------- 解析 Gentoo 镜像 base URL（用于 emerge 时的 distfiles）----------
+GENTOO_MIRROR_BASE="https://distfiles.gentoo.org"
+case "${REPO:-default}" in
+    tuna|tsinghua)
+        GENTOO_MIRROR_BASE="https://mirrors.tuna.tsinghua.edu.cn/gentoo"
+        ;;
+esac
+
+# ---------- 路径准备 ----------
+BUILD_ROOT="$(readlink -m "${BUILD_ROOT}")"
+BUILD_BASE="$(readlink -m "${BUILD_BASE}")"
+STAGE3_DIR="$(readlink -m "${STAGE3_DIR}")"
+ROOTFS="$(readlink -m "${ROOTFS}")"
+CACHE_DIR="$(readlink -m "${CACHE_DIR}")"
+WORKDIR="$(dirname "${STAGE3_DIR}")"
+
+[ -f "${SETUP_SCRIPT}" ] || { echo "缺少 ${SETUP_SCRIPT}" >&2; exit 1; }
+
+# 护栏
+case "${WORKDIR}" in
+    /|/tmp|/var/tmp|/home|/root|/usr|/etc)
+        echo "错误：构建工作区不能是共享系统目录 (${WORKDIR})。" >&2
+        exit 1 ;;
+esac
+
+# ---------- 创建构建目录树（普通用户，方便清理）----------
+mkdir -p "${BUILD_BASE}" "${CACHE_DIR}" "${WORKDIR}"
+
+# ---------- 跨架构预检 ----------
+HOST_ARCH="$(uname -m)"
+if [ "${HOST_ARCH}" != "aarch64" ] && [ "${HOST_ARCH}" != "arm64" ]; then
+    BINFMT=/proc/sys/fs/binfmt_misc/qemu-aarch64
+    if [ ! -e "${BINFMT}" ] || ! grep -q '^enabled' "${BINFMT}" 2>/dev/null; then
+        echo "错误：宿主架构为 ${HOST_ARCH}，但未启用 aarch64 的 binfmt/qemu。" >&2
+        echo "构建 arm64 rootfs 将失败。请先执行：" >&2
+        echo "  sudo apt-get install -y qemu-user-static binfmt-support" >&2
+        echo "  docker run --rm --privileged tonistiigi/binfmt --install arm64" >&2
+        echo "或在原生 aarch64 环境（如 GitHub ubuntu-24.04-arm runner）构建。" >&2
+        exit 1
+    fi
+    if ! grep -q 'flags:.*F' "${BINFMT}" 2>/dev/null; then
+        echo "警告：qemu-aarch64 未带 F flag，跨架构 chroot 可能找不到解释器。" >&2
+        echo "建议用 tonistiigi/binfmt 重新注册：" >&2
+        echo "  docker run --rm --privileged tonistiigi/binfmt --install arm64" >&2
+    fi
+fi
+echo "[gentoo] 跨架构预检通过（宿主 ${HOST_ARCH}）"
+
+# ---------- 第一步：下载 stage3-arm64-openrc ----------
+echo "[gentoo] 1. 解析最新 stage3-arm64-openrc 版本 ..."
+LATEST_TXT="$(wget -qO- "${MIRROR}/latest-stage3-arm64-openrc.txt" 2>/dev/null || true)"
+if [ -z "${LATEST_TXT}" ]; then
+    echo "错误：无法下载 ${MIRROR}/latest-stage3-arm64-openrc.txt" >&2
+    echo "请检查网络连接或尝试切换镜像源（REPO=default 使用官方源）" >&2
+    exit 1
+fi
+# 过滤掉注释和空行，提取第一个文件路径
+FILENAME="$(echo "${LATEST_TXT}" | grep -v '^#' | grep -v '^$' | grep '\.tar' | awk '{print $1}' | head -n1)"
+if [ -z "${FILENAME}" ]; then
+    echo "错误：无法解析 stage3 文件名" >&2
+    echo "下载的内容：" >&2
+    echo "${LATEST_TXT}" | head -5 >&2
+    exit 1
+fi
+BASENAME="$(basename "${FILENAME}")"
+echo "[gentoo]   最新: ${BASENAME}"
+
+TARBALL="${CACHE_DIR}/${BASENAME}"
+
+if [ ! -f "${TARBALL}" ]; then
+    echo "[gentoo]   下载 ${MIRROR}/${FILENAME} ..."
+    wget -t 3 -T 60 -nv -O "${TARBALL}" "${MIRROR}/${FILENAME}" || { echo "[gentoo]   错误：下载失败，可尝试换镜像源 REPO=tuna" >&2; exit 1; }
+    # 下载签名文件（可选校验）
+    wget -qO "${TARBALL}.DIGESTS" "${MIRROR}/${FILENAME}.DIGESTS" 2>/dev/null || true
+    if [ -f "${TARBALL}.DIGESTS" ]; then
+        echo "[gentoo]   校验 SHA512 ..."
+        (cd "${CACHE_DIR}" && sha512sum -c <(grep -A1 SHA512 "${TARBALL}.DIGESTS" | grep "${BASENAME}") 2>/dev/null) || echo "[gentoo]   警告：sha512 校验跳过" >&2
+    fi
+else
+    echo "[gentoo]   缓存命中: ${TARBALL}"
+fi
+
+# ---------- 权限检查：解压 stage3 需要 root ----------
+[ "${EUID}" -eq 0 ] || exec sudo -E "$0" "$@"
+
+# ---------- 第二步：解压 stage3 到构建环境 ----------
+echo "[gentoo] 2. 解压 stage3 到 ${STAGE3_DIR} ..."
+rm -rf "${STAGE3_DIR}"
+mkdir -p "${STAGE3_DIR}"
+tar xpf "${TARBALL}" --numeric-owner --xattrs-include='*.*' --same-owner -C "${STAGE3_DIR}" 2>/dev/null || \
+    tar xpf "${TARBALL}" -C "${STAGE3_DIR}"
+
+[ -x "${STAGE3_DIR}/bin/busybox" ] || [ -x "${STAGE3_DIR}/usr/bin/emerge" ] || { echo "stage3 解压异常" >&2; exit 1; }
+
+# ---------- 第三步：chroot 进入 stage3 ----------
+echo "[gentoo] 3. 进入 stage3 chroot ..."
+trap 'chroot_exit "${STAGE3_DIR}"' EXIT
+chroot_enter "${STAGE3_DIR}"
+
+# ---------- 第三+步：拷贝安装框架到 stage3 ----------
+echo "[gentoo] 3+. 拷贝安装框架到 stage3 ..."
+cp -f "${REPO_ROOT}/lib/download-helpers.sh" "${STAGE3_DIR}/download-helpers.sh"
+cp -r "${REPO_ROOT}/infra" "${STAGE3_DIR}/infra"
+"${REPO_ROOT}/tools/inject-secrets.sh" write "${STAGE3_DIR}" 2>/dev/null || true
+cp -f "${REPO_ROOT}/tools/inject-secrets.sh" "${STAGE3_DIR}/inject-secrets.sh" 2>/dev/null || true
+cp -f "${SCRIPT_DIR}/package.list" "${STAGE3_DIR}/package.list"
+cp -f "${SCRIPT_DIR}/service.sh" "${STAGE3_DIR}/service.sh"
+
+# ---------- 第四+五步：执行 setup（在 stage3 内，安装到 /gentoo-rootfs）----------
+echo "[gentoo] 4+5. 执行 setup（用 ROOT= emerge 安装到目标 rootfs）..."
+cp -f "${SETUP_SCRIPT}" "${STAGE3_DIR}/setup.sh"
+chmod +x "${STAGE3_DIR}/setup.sh"
+chroot_run "${STAGE3_DIR}" /usr/bin/env \
+    DISTRO="${DISTRO}" \
+    INFRA="${INFRA:-sing-box}" \
+    ROOT_PASSWORD="${ROOT_PASSWORD}" \
+    HOSTNAME_VAL="${HOSTNAME_VAL}" \
+    TARGET_ROOTFS="/gentoo-rootfs" \
+    GENTOO_MIRROR_BASE="${GENTOO_MIRROR_BASE}" \
+    /bin/sh /setup.sh
+
+# setup.sh 在 stage3 内生成了 /gentoo-rootfs，现在把它移出来
+echo "[gentoo] 6. 移出目标 rootfs ..."
+rm -rf "${ROOTFS}"
+mv "${STAGE3_DIR}/gentoo-rootfs" "${ROOTFS}"
+
+rm -f "${STAGE3_DIR}/setup.sh"
+rm -f "${STAGE3_DIR}/inject-secrets.sh"
+rm -f "${STAGE3_DIR}/download-helpers.sh"
+rm -f "${STAGE3_DIR}/package.list"
+rm -f "${STAGE3_DIR}/service.sh"
+rm -rf "${STAGE3_DIR}/infra"
+
+echo "[gentoo] base rootfs 构建完成：${ROOTFS}"
+
+# ---------- 可选：打包 ----------
+if [[ "${PACK}" == "1" ]]; then
+    chroot_exit "${STAGE3_DIR}"
+    trap '' EXIT
+    OUTPUT="${OUTPUT:-${ROOTFS%/}-minimal.tar.xz}"
+    OUTPUT="$(readlink -m "${OUTPUT}")"
+    echo "[gentoo] 7. 调用打包：lib/slim-rootfs.sh"
+    "${REPO_ROOT}/lib/slim-rootfs.sh" "${ROOTFS}" "${OUTPUT}"
+fi
+
+

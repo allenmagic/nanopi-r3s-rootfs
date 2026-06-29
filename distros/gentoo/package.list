@@ -1,0 +1,30 @@
+# ============================================================
+# Gentoo 包列表（通过 ROOT= emerge 安装到目标 rootfs）
+#
+# 语法：
+#   [pm] <package>                —— emerge 安装（ROOT=${ROOTFS} emerge）
+#   [dl@<url>] <binary_name>      —— 下载 URL 到 /usr/local/bin/<binary_name>
+#
+# 三段式：base / sing-box / landscape
+# ============================================================
+
+# ========== base ==========
+[pm] sys-apps/busybox
+[pm] app-shells/bash
+[pm] net-misc/openssh
+[pm] net-misc/chrony
+[pm] net-misc/curl
+[pm] sys-apps/kmod
+[pm] sys-apps/iproute2
+[pm] sys-apps/util-linux
+[pm] sys-libs/timezone-data
+
+# ========== sing-box ==========
+[pm] net-dns/dnsmasq
+[pm] net-firewall/nftables
+[dl@https://pkgs.tailscale.com/stable/tailscale_latest_arm64.tgz] tailscale
+[dl@https://pkgs.tailscale.com/stable/tailscale_latest_arm64.tgz] tailscaled
+[dl@https://github.com/SagerNet/sing-box/releases/latest/download/sing-box-linux-arm64.tar.gz] sing-box
+[dl@https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64] cloudflared
+
+# ========== landscape ==========
