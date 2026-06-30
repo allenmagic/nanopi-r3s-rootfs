@@ -11,6 +11,7 @@ TARGET_ROOTFS="${TARGET_ROOTFS:-/gentoo-rootfs}"
 SERIAL_DEV="${SERIAL_DEV:-ttyS2}"
 SERIAL_BAUD="${SERIAL_BAUD:-1500000}"
 GENTOO_MIRROR_BASE="${GENTOO_MIRROR_BASE:-https://distfiles.gentoo.org}"
+TIMEZONE="${TIMEZONE:-Asia/Shanghai}"
 
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
@@ -85,14 +86,13 @@ MAKEOPTS="-j1"
 EMERGE_DEFAULT_OPTS="--jobs=1 --quiet-build"
 
 # 优先使用二进制包（避免在 QEMU 下编译触发 CLONE_THREAD 错误）
-FEATURES="\${FEATURES} getbinpkg"
+# WSL2 下禁用 portage sandbox（/dev/pts 无法正常挂载，sandbox 申请 PTY 会失败）
+FEATURES="\${FEATURES} getbinpkg -sandbox -usersandbox -ipc-sandbox -network-sandbox -pid-sandbox -binpkg-verify-signature"
+BINPKG_VERIFY_SIGNATURE="no"
 
 # 禁用 binpkg GPG 签名校验（构建环境，非生产系统）
 # 防止 portage 调用 getuto 时因缺少 sec-keys/openpgp-keys-gentoo-release 而报错
-USE="\${USE} -binpkg-request-signature"
-
-# WSL2 下禁用 portage sandbox（/dev/pts 无法正常挂载，sandbox 申请 PTY 会失败）
-FEATURES="\${FEATURES} -sandbox -usersandbox -ipc-sandbox -network-sandbox -pid-sandbox"
+USE="\${USE} -systemd -gnome -gnome-keyring -binpkg-request-signature"
 EOF
 
 # 配置二进制包仓库（arm64-openrc binhost）
@@ -101,8 +101,17 @@ cat > /etc/portage/binrepos.conf/gentoo.conf <<'EOF'
 [gentoo]
 priority = 9999
 sync-uri = https://distfiles.gentoo.org/releases/arm64/binpackages/23.0/arm64/
+# 关闭 binpkg GPG 签名验证（2025+ Portage 新增的 per-repo 设置）
+# QEMU 环境下 GPG 因 PTY 耗尽（openpty failed）无法运行，必须绕过
+verify-signature = false
 EOF
 
+# package.mask：阻止 systemd 相关包被二进制包反拉
+mkdir -p /etc/portage/package.mask
+cat > /etc/portage/package.mask/router <<'EOF'
+sys-apps/systemd
+sys-apps/gentoo-systemd-integration
+EOF
 # package.use 配置（处理目录情况）
 if [ -d "/etc/portage/package.use" ]; then
     # 如果是目录，写入子文件
@@ -130,14 +139,16 @@ if [ ! -d "/var/db/repos/gentoo" ] || [ -z "$(ls -A /var/db/repos/gentoo 2>/dev/
         GENTOO_MIRRORS="https://distfiles.gentoo.org" emerge --sync
 fi
 
-# 手动部署 Gentoo release GPG 密钥到 TARGET_ROOTFS（绕过 emerge PTY 问题）
-# getuto 在 ROOT=/gentoo-rootfs 时会检查目标 rootfs 的 /usr/share/openpgp-keys/
+# 手动部署 Gentoo release GPG 密钥到 TARGET_ROOTFS
+# 优先从 stage3 复制，避免硬编码日期 URL 过期
 echo "[setup] 手动部署 Gentoo release GPG 密钥到目标 rootfs ..."
 mkdir -p "${TARGET_ROOTFS}/usr/share/openpgp-keys"
-# 从 sec-keys/openpgp-keys-gentoo-release ebuild 的 SRC_URI 直接下载
-curl -fsSL "https://dev.gentoo.org/~sam/dist/sec-keys/openpgp-keys-gentoo-release/gentoo-release.asc.20260125.gz" \
-    | gunzip > "${TARGET_ROOTFS}/usr/share/openpgp-keys/gentoo-release.asc" 2>/dev/null || \
-    echo "[setup] 警告: 无法下载 Gentoo release GPG 密钥，跳过" >&2
+if [ -f /usr/share/openpgp-keys/gentoo-release.asc ]; then
+    cp /usr/share/openpgp-keys/gentoo-release.asc "${TARGET_ROOTFS}/usr/share/openpgp-keys/"
+    echo "[setup]   从 stage3 复制 GPG 密钥成功"
+else
+    echo "[setup]   提示: stage3 无 GPG 密钥（当前已禁用 binpkg 签名校验，不影响安装）" >&2
+fi
 
 # ============================================================
 #  2. 安装包到目标 rootfs —— 按 package.list 三段安装
@@ -186,13 +197,12 @@ else
 fi
 
 # 批量 emerge 安装到 ROOT
-# --binpkg-respect-use=n：接受 USE 略有差异的 binpkg，避免触发源码编译
+# 默认 --binpkg-respect-use=y：拒绝 USE 不匹配的 binpkg，避免 systemd/GNOME 依赖链
+# 被二进制包带入 OpenRC 目标 rootfs。缺失的包自动回退到源码编译
 # --autounmask=y --autounmask-continue=y：自动处理 USE/keyword/unmask 变更并继续
 if [ -n "${_PM_PKGS_}" ]; then
     echo "[setup] 执行: ROOT=${TARGET_ROOTFS} emerge ${_PM_PKGS_}"
-    ROOT="${TARGET_ROOTFS}" emerge --buildpkg=n --binpkg-respect-use=n \
-        --autounmask=y --autounmask-continue=y \
-        ${_PM_PKGS_}
+    ROOT="${TARGET_ROOTFS}" emerge --buildpkg=n --autounmask=y --autounmask-continue=y ${_PM_PKGS_}
 fi
 
 # 处理 [dl@] 下载包（直接下载到 TARGET_ROOTFS）
@@ -257,8 +267,10 @@ if [ -f "${_PKG_LIST_}" ]; then
 fi
 
 # 配置时区
-if [ -f /usr/share/zoneinfo/Asia/Shanghai ]; then
-    cp /usr/share/zoneinfo/Asia/Shanghai "${TARGET_ROOTFS}/etc/localtime" 2>/dev/null || true
+if [ -f "/usr/share/zoneinfo/${TIMEZONE}" ]; then
+    cp "/usr/share/zoneinfo/${TIMEZONE}" "${TARGET_ROOTFS}/etc/localtime" 2>/dev/null || true
+else
+    echo "[setup] 警告：时区文件 /usr/share/zoneinfo/${TIMEZONE} 不存在" >&2
 fi
 
 # ============================================================

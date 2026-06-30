@@ -89,7 +89,7 @@ echo "[gentoo] 跨架构预检通过（宿主 ${HOST_ARCH}）"
 
 # ---------- 第一步：下载 stage3-arm64-openrc ----------
 echo "[gentoo] 1. 解析最新 stage3-arm64-openrc 版本 ..."
-LATEST_TXT="$(wget -qO- "${MIRROR}/latest-stage3-arm64-openrc.txt" 2>/dev/null || true)"
+LATEST_TXT="$(wget -t 2 -T 30 -qO- "${MIRROR}/latest-stage3-arm64-openrc.txt" 2>/dev/null || true)"
 if [ -z "${LATEST_TXT}" ]; then
     echo "错误：无法下载 ${MIRROR}/latest-stage3-arm64-openrc.txt" >&2
     echo "请检查网络连接或尝试切换镜像源（REPO=default 使用官方源）" >&2
@@ -115,10 +115,18 @@ if [ ! -f "${TARBALL}" ]; then
     wget -qO "${TARBALL}.DIGESTS" "${MIRROR}/${FILENAME}.DIGESTS" 2>/dev/null || true
     if [ -f "${TARBALL}.DIGESTS" ]; then
         echo "[gentoo]   校验 SHA512 ..."
-        (cd "${CACHE_DIR}" && sha512sum -c <(grep -A1 SHA512 "${TARBALL}.DIGESTS" | grep "${BASENAME}") 2>/dev/null) || echo "[gentoo]   警告：sha512 校验跳过" >&2
+        if ! (cd "${CACHE_DIR}" && grep -A1 SHA512 "${TARBALL}.DIGESTS" | grep "${BASENAME}" | sha512sum -c - 2>/dev/null); then
+            echo "[gentoo]   警告：SHA512 校验不匹配，tarball 可能损坏" >&2
+        fi
     fi
 else
     echo "[gentoo]   缓存命中: ${TARBALL}"
+    # 缓存文件快速完整性检查
+    if ! xz -t "${TARBALL}" 2>/dev/null; then
+        echo "[gentoo]   缓存 tarball 损坏，重新下载 ..." >&2
+        rm -f "${TARBALL}" "${TARBALL}.DIGESTS"
+        wget -t 3 -T 60 -nv -O "${TARBALL}" "${MIRROR}/${FILENAME}" || { echo "[gentoo]   错误：下载失败" >&2; exit 1; }
+    fi
 fi
 
 # ---------- 权限检查：解压 stage3 需要 root ----------
@@ -128,8 +136,18 @@ fi
 echo "[gentoo] 2. 解压 stage3 到 ${STAGE3_DIR} ..."
 rm -rf "${STAGE3_DIR}"
 mkdir -p "${STAGE3_DIR}"
-tar xpf "${TARBALL}" --numeric-owner --xattrs-include='*.*' --same-owner -C "${STAGE3_DIR}" 2>/dev/null || \
+# 先做完整性校验（失败则清缓存重试）
+if ! xz -t "${TARBALL}" 2>/dev/null; then
+    echo "[gentoo]   tarball 完整性校验失败，清除缓存后重试 ..." >&2
+    rm -f "${TARBALL}" "${TARBALL}.DIGESTS"
+    wget -t 3 -T 60 -nv -O "${TARBALL}" "${MIRROR}/${FILENAME}" || { echo "[gentoo]   错误：重试下载仍失败" >&2; exit 1; }
+fi
+if ! tar xpf "${TARBALL}" --numeric-owner --xattrs-include='*.*' --same-owner -C "${STAGE3_DIR}"; then
+    echo "[gentoo]   带 xattrs 解压失败，清理后降级解压 ..."
+    rm -rf "${STAGE3_DIR}"
+    mkdir -p "${STAGE3_DIR}"
     tar xpf "${TARBALL}" -C "${STAGE3_DIR}"
+fi
 
 [ -x "${STAGE3_DIR}/bin/busybox" ] || [ -x "${STAGE3_DIR}/usr/bin/emerge" ] || { echo "stage3 解压异常" >&2; exit 1; }
 
@@ -145,8 +163,6 @@ cp -r "${REPO_ROOT}/infra" "${STAGE3_DIR}/infra"
 "${REPO_ROOT}/tools/inject-secrets.sh" write "${STAGE3_DIR}" 2>/dev/null || true
 cp -f "${REPO_ROOT}/tools/inject-secrets.sh" "${STAGE3_DIR}/inject-secrets.sh" 2>/dev/null || true
 cp -f "${SCRIPT_DIR}/package.list" "${STAGE3_DIR}/package.list"
-cp -f "${SCRIPT_DIR}/service.sh" "${STAGE3_DIR}/service.sh"
-
 # ---------- 第四+五步：执行 setup（在 stage3 内，安装到 /gentoo-rootfs）----------
 echo "[gentoo] 4+5. 执行 setup（用 ROOT= emerge 安装到目标 rootfs）..."
 cp -f "${SETUP_SCRIPT}" "${STAGE3_DIR}/setup.sh"
@@ -162,6 +178,12 @@ chroot_run "${STAGE3_DIR}" /usr/bin/env \
 
 # setup.sh 在 stage3 内生成了 /gentoo-rootfs，现在把它移出来
 echo "[gentoo] 6. 移出目标 rootfs ..."
+# 安全护栏：拒绝系统目录
+case "${ROOTFS}" in
+    /|/tmp|/var/tmp|/home|/root|/usr|/etc)
+        echo "错误：rootfs 目标不能是共享系统目录 (${ROOTFS})。" >&2
+        exit 1 ;;
+esac
 rm -rf "${ROOTFS}"
 mv "${STAGE3_DIR}/gentoo-rootfs" "${ROOTFS}"
 
@@ -169,7 +191,7 @@ rm -f "${STAGE3_DIR}/setup.sh"
 rm -f "${STAGE3_DIR}/inject-secrets.sh"
 rm -f "${STAGE3_DIR}/download-helpers.sh"
 rm -f "${STAGE3_DIR}/package.list"
-rm -f "${STAGE3_DIR}/service.sh"
+
 rm -rf "${STAGE3_DIR}/infra"
 
 echo "[gentoo] base rootfs 构建完成：${ROOTFS}"

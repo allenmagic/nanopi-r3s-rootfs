@@ -1,0 +1,111 @@
+name: Build Gentoo Rootfs
+
+on:
+  workflow_dispatch:
+    inputs:
+      infra:
+        description: "路由系统组件"
+        type: choice
+        required: true
+        default: sing-box
+        options: [sing-box, landscape]
+      mirror:
+        description: "镜像源"
+        type: choice
+        required: true
+        default: default
+        options: [default, tuna]
+      pack:
+        description: "打包为 tar.xz"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    name: build-gentoo-${{ inputs.infra }}
+    env:
+      DISTRO: gentoo
+      INFRA: ${{ inputs.infra }}
+      PACK: ${{ inputs.pack && '1' || '0' }}
+      REPO: ${{ inputs.mirror }}
+      ROOT_PASSWORD: ${{ secrets.ROOT_PASSWORD }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
+      TAILSCALE_AUTH_KEY: ${{ secrets.TAILSCALE_AUTH_KEY }}
+      HEADSCALE_AUTH_KEY: ${{ secrets.HEADSCALE_AUTH_KEY }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install host build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            xz-utils zstd file binutils \
+            curl ca-certificates wget gnupg
+
+      - name: Build Gentoo rootfs (${{ inputs.infra }})
+        run: |
+          set -euo pipefail
+          chmod +x "distros/gentoo/build.sh"
+          sudo -E bash -x "distros/gentoo/build.sh"
+
+      - name: Locate artifact
+        id: artifact
+        run: |
+          set -euo pipefail
+          f="$(ls -1 build/gentoo/gentoo-rootfs-minimal.tar.xz 2>/dev/null \
+               || ls -1 build/gentoo/*-rootfs-minimal.tar.* 2>/dev/null \
+               || ls -1 build/gentoo/*.tar.* 2>/dev/null | head -n1)"
+          if [ -z "${f:-}" ] || [ ! -e "$f" ]; then
+            echo "未找到 Gentoo 产物" >&2
+            ls -lR build/gentoo || true
+            exit 1
+          fi
+          out="gentoo-${INFRA}-aarch64-rootfs.tar.${f##*.}"
+          cp "$f" "$out"
+          sha256sum "$out" > "${out}.sha256"
+          echo "path=$out" >> "$GITHUB_OUTPUT"
+          echo "sha=${out}.sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: gentoo-${{ inputs.infra }}-aarch64-rootfs
+          path: |
+            ${{ steps.artifact.outputs.path }}
+            ${{ steps.artifact.outputs.sha }}
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    needs: build
+    if: ${{ always() && contains(needs.build.result, 'success') }}
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v6
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Resolve tag
+        id: tag
+        run: echo "tag=nanopi-r3s-gentoo-$(date +%Y%m%d)" >> "$GITHUB_OUTPUT"
+
+      - name: Create / Update Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.tag.outputs.tag }}
+          files: |
+            dist/*.tar.*
+            dist/*.sha256
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
