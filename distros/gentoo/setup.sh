@@ -51,19 +51,31 @@ kvm:x:78:
 render:x:999:
 sgx:x:998:
 shadow:x:997:
+cron:x:105:
+sshd:x:22:
+ntp:x:123:
 EOF
 
 cat > "${TARGET_ROOTFS}/etc/passwd" <<'EOF'
 root:x:0:0:root:/root:/bin/bash
+cron:x:105:105:cron daemon:/dev/null:/sbin/nologin
+sshd:x:22:22:sshd:/dev/null:/sbin/nologin
+ntp:x:123:123:ntp:/dev/null:/sbin/nologin
 EOF
 
 cat > "${TARGET_ROOTFS}/etc/shadow" <<'EOF'
 root:!:19000:0:99999:7:::
+cron:*:19000:0:99999:7:::
+sshd:*:19000:0:99999:7:::
+ntp:*:19000:0:99999:7:::
 EOF
 chmod 640 "${TARGET_ROOTFS}/etc/shadow"
 
 cat > "${TARGET_ROOTFS}/etc/gshadow" <<'EOF'
 root:::
+cron:::
+sshd:::
+ntp:::
 EOF
 chmod 640 "${TARGET_ROOTFS}/etc/gshadow"
 
@@ -191,9 +203,19 @@ fi
 # 批量 emerge 安装到 ROOT
 # 默认 --binpkg-respect-use=y：拒绝 USE 不匹配的 binpkg，避免 systemd/GNOME 依赖链
 # 被二进制包带入 OpenRC 目标 rootfs。缺失的包自动回退到源码编译
-# ROOT= fowners 问题：在构建环境预创建 cron 用户，保障 fowners cron:cron 可解析
-addgroup -S cron 2>/dev/null || true
-adduser -S cron -G cron -h /dev/null -s /sbin/nologin 2>/dev/null || true
+# ROOT= fowners 问题：cronie ebuild 的 install 阶段调用 fowners cron:cron
+# 从构建环境(stage3)解析用户，而非目标 rootfs。fowners 通过 NSS(getpwnam)
+# 在构建环境查用户，不存在则报错。因此必须在 STAGE3（而非仅目标 rootfs）
+# 预创建 cron 用户/组。
+# 直写 /etc/passwd + /etc/group 而非 BusyBox adduser，避免最小环境下
+# BusyBox 兼容性问题导致用户创建静默失败。
+# UID/GID 105 = Gentoo acct-user/cron / acct-group/cron 标准值
+if ! grep -q '^cron:' /etc/passwd 2>/dev/null; then
+	echo 'cron:x:105:105:cron daemon:/dev/null:/sbin/nologin' >> /etc/passwd
+fi
+if ! grep -q '^cron:' /etc/group 2>/dev/null; then
+	echo 'cron:x:105:' >> /etc/group
+fi
 # --autounmask=y --autounmask-continue=y：自动处理 USE/keyword/unmask 变更并继续
 if [ -n "${_PM_PKGS_}" ]; then
     echo "[setup] 执行: ROOT=${TARGET_ROOTFS} emerge ${_PM_PKGS_}"
