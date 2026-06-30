@@ -191,6 +191,9 @@ fi
 # 批量 emerge 安装到 ROOT
 # 默认 --binpkg-respect-use=y：拒绝 USE 不匹配的 binpkg，避免 systemd/GNOME 依赖链
 # 被二进制包带入 OpenRC 目标 rootfs。缺失的包自动回退到源码编译
+# ROOT= fowners 问题：在构建环境预创建 cron 用户，保障 fowners cron:cron 可解析
+addgroup -S cron 2>/dev/null || true
+adduser -S cron -G cron -h /dev/null -s /sbin/nologin 2>/dev/null || true
 # --autounmask=y --autounmask-continue=y：自动处理 USE/keyword/unmask 变更并继续
 if [ -n "${_PM_PKGS_}" ]; then
     echo "[setup] 执行: ROOT=${TARGET_ROOTFS} emerge ${_PM_PKGS_}"
