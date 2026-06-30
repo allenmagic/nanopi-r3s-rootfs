@@ -116,18 +116,10 @@ EOF
 if [ -d "/etc/portage/package.use" ]; then
     # 如果是目录，写入子文件
     cat > /etc/portage/package.use/router <<'EOF'
-# dnsmasq 启用 nftables 支持
-net-dns/dnsmasq nftables
-# nftables 启用 JSON 支持
-net-firewall/nftables json xtables
 EOF
 else
     # 如果是文件或不存在，直接写入
     cat > /etc/portage/package.use <<'EOF'
-# dnsmasq 启用 nftables 支持
-net-dns/dnsmasq nftables
-# nftables 启用 JSON 支持
-net-firewall/nftables json xtables
 EOF
 fi
 
