@@ -20,7 +20,6 @@
 [pm] sys-libs/timezone-data
 [pm] sys-apps/openrc
 [pm] app-admin/syslog-ng
-[pm] sys-process/cronie
 
 # ========== sing-box ==========
 [pm] net-dns/dnsmasq
