@@ -19,7 +19,6 @@
 [pm] sys-apps/util-linux
 [pm] sys-libs/timezone-data
 [pm] sys-apps/openrc
-[pm] app-admin/syslog-ng
 
 # ========== sing-box ==========
 [pm] net-dns/dnsmasq

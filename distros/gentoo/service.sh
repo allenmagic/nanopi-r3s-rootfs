@@ -9,7 +9,7 @@ enable_router_services() {
 
     # --- 系统基础服务 ---
     _enable_service bootmisc boot
-    _enable_service syslog
+    _enable_service syslogd
     _enable_service crond
 
     # --- base 应用服务 ---
