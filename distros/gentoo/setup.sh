@@ -120,10 +120,12 @@ EOF
 if [ -d "/etc/portage/package.use" ]; then
     # 如果是目录，写入子文件
     cat > /etc/portage/package.use/router <<'EOF'
+sys-apps/busybox syslog mdev make-symlinks
 EOF
 else
     # 如果是文件或不存在，直接写入
     cat > /etc/portage/package.use <<'EOF'
+sys-apps/busybox syslog mdev make-symlinks
 EOF
 fi
 
