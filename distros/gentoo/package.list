@@ -27,7 +27,7 @@
 [pm] net-firewall/nftables
 [dl@https://pkgs.tailscale.com/stable/tailscale_latest_arm64.tgz] tailscale
 [dl@https://pkgs.tailscale.com/stable/tailscale_latest_arm64.tgz] tailscaled
-[dl@https://github.com/SagerNet/sing-box/releases/latest/download/sing-box-linux-arm64.tar.gz] sing-box
+[dl@https://github.com/sagernet/sing-box/releases/download/v1.13.11/sing-box-1.13.11-linux-arm64.tar.gz] sing-box
 [dl@https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64] cloudflared
 
 # ========== landscape ==========
