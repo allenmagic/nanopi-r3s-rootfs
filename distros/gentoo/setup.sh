@@ -93,6 +93,9 @@ BINPKG_VERIFY_SIGNATURE="no"
 # 禁用 binpkg GPG 签名校验（构建环境，非生产系统）
 # 防止 portage 调用 getuto 时因缺少 sec-keys/openpgp-keys-gentoo-release 而报错
 USE="\${USE} -systemd -gnome -gnome-keyring -binpkg-request-signature"
+
+# 匹配 arm64 binhost 的 Python 版本（systemd-utils 的 REQUIRED_USE 要求）
+PYTHON_SINGLE_TARGET="python3_13"
 EOF
 
 # 配置二进制包仓库（arm64-openrc binhost）
