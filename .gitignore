@@ -3,6 +3,7 @@
 
 # 构建产物
 /build/
+/rootfs/
 
 # 兜底
 *-rootfs/

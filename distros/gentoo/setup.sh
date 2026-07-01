@@ -229,6 +229,16 @@ if [ -n "${_PM_PKGS_}" ]; then
     ROOT="${TARGET_ROOTFS}" emerge --buildpkg=n --autounmask=y --autounmask-continue=y --autounmask-keep-masks=y ${_PM_PKGS_}
 fi
 
+# Python 清理：systemd-utils 只用了 tmpfiles（纯 C），Python 仅在构建时通过
+# REQUIRED_USE 拉入，运行时不需要。从目标 rootfs 中删除以节省 ~30MB
+# 注意：仅删除 /usr/lib/python* 下的运行时库文件，保留包头文件以防万一
+echo "[setup] 清理目标 rootfs 中的 Python（运行时不需要）..."
+rm -rf "${TARGET_ROOTFS}/usr/lib/python"* \
+       "${TARGET_ROOTFS}/usr/lib64/python"* \
+       "${TARGET_ROOTFS}/usr/bin/python"* \
+       "${TARGET_ROOTFS}/usr/share/python"* \
+       "${TARGET_ROOTFS}/usr/include/python"* 2>/dev/null || true
+
 # 处理 [dl@] 下载包（直接下载到 TARGET_ROOTFS）
 if [ -f "${_PKG_LIST_}" ]; then
     _section_="base"
@@ -335,6 +345,52 @@ cat > "${TARGET_ROOTFS}/etc/conf.d/busybox-ntpd" <<'CONFEOF'
 # NTP 服务器列表
 NTP_SERVERS="pool.ntp.org ntp.cloudflare.com"
 CONFEOF
+
+# ============================================================
+#  2.6. busybox syslogd / crond OpenRC 服务
+# ============================================================
+echo "[setup] === 配置 busybox syslogd / crond ==="
+
+# syslogd init 脚本
+cat > "${TARGET_ROOTFS}/etc/init.d/syslog" <<'INITEOF'
+#!/sbin/openrc-run
+description="Busybox syslog daemon"
+
+start() {
+    ebegin "Starting syslogd"
+    start-stop-daemon --start --quiet \
+        --exec /bin/busybox -- syslogd -C /dev/ttyS2
+    eend $?
+}
+
+stop() {
+    ebegin "Stopping syslogd"
+    start-stop-daemon --stop --quiet --exec /bin/busybox -- syslogd
+    eend $?
+}
+INITEOF
+chmod 755 "${TARGET_ROOTFS}/etc/init.d/syslog"
+
+# crond init 脚本
+cat > "${TARGET_ROOTFS}/etc/init.d/crond" <<'INITEOF'
+#!/sbin/openrc-run
+description="Busybox cron daemon"
+
+start() {
+    ebegin "Starting crond"
+    start-stop-daemon --start --quiet \
+        --make-pidfile --pidfile /run/crond.pid \
+        --exec /bin/busybox -- crond -l 0 -L /var/log/crond.log
+    eend $?
+}
+
+stop() {
+    ebegin "Stopping crond"
+    start-stop-daemon --stop --quiet --pidfile /run/crond.pid
+    eend $?
+}
+INITEOF
+chmod 755 "${TARGET_ROOTFS}/etc/init.d/crond"
 
 # 配置时区
 if [ -f "/usr/share/zoneinfo/${TIMEZONE}" ]; then
