@@ -75,19 +75,37 @@ echo "[setup] === 配置 Portage ==="
 # 计算 CPU 核心数
 _NPROC_="$(nproc 2>/dev/null || echo 4)"
 
-# Portage 配置（优先二进制包，WSL2/QEMU 下跳过源码编译）
+# Portage 配置（动态适配：原生 ARM64 多核编译，QEMU 保守单核）
 mkdir -p /etc/portage
+
+# 检测是否在 QEMU 用户态模拟下运行
+# HOST_ARCH 由 build.sh 传入（宿主的架构）
+# 若宿主本身是 aarch64，则为原生 ARM64 编译，可安全多核
+# 若宿主是 x86_64 等，则为 QEMU 跨架构编译，需限制并发
+if [ "${HOST_ARCH:-}" = "aarch64" ] || [ "${HOST_ARCH:-}" = "arm64" ]; then
+    _NATIVE_ARM_="1"
+    _MAKEOPTS_="-j${_NPROC_}"
+    _EMERGE_JOBS_="${_NPROC_}"
+    # 原生 ARM64：启用 sandbox 保证构建正确性
+    _FEATURES_="getbinpkg -binpkg-verify-signature"
+else
+    _NATIVE_ARM_="0"
+    _MAKEOPTS_="-j1"
+    _EMERGE_JOBS_="1"
+    # QEMU/WSL2：禁用 sandbox（/dev/pts 无法正常挂载，PTY 会耗尽）
+    _FEATURES_="getbinpkg -sandbox -usersandbox -ipc-sandbox -network-sandbox -pid-sandbox -binpkg-verify-signature"
+fi
+
 cat > /etc/portage/make.conf <<EOF
 # Gentoo 镜像源（distfiles 下载）
 GENTOO_MIRRORS="${GENTOO_MIRROR_BASE}/distfiles"
 
-# 编译选项（WSL2 + QEMU 环境限制并发避免 PTY 耗尽）
-MAKEOPTS="-j1"
-EMERGE_DEFAULT_OPTS="--jobs=1 --quiet-build"
+# 编译选项（原生 ARM64: 多核 / QEMU: 单核避免 PTY/CLONE_THREAD 问题）
+MAKEOPTS="${_MAKEOPTS_}"
+EMERGE_DEFAULT_OPTS="--jobs=${_EMERGE_JOBS_} --quiet-build"
 
-# 优先使用二进制包（避免在 QEMU 下编译触发 CLONE_THREAD 错误）
-# WSL2 下禁用 portage sandbox（/dev/pts 无法正常挂载，sandbox 申请 PTY 会失败）
-FEATURES="\${FEATURES} getbinpkg -sandbox -usersandbox -ipc-sandbox -network-sandbox -pid-sandbox -binpkg-verify-signature"
+# FEATURES（原生 ARM64 启用 sandbox，QEMU 下禁用）
+FEATURES="\${FEATURES} ${_FEATURES_}"
 BINPKG_VERIFY_SIGNATURE="no"
 
 # 禁用 binpkg GPG 签名校验（构建环境，非生产系统）
