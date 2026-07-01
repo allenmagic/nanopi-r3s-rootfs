@@ -143,12 +143,14 @@ if [ -d "/etc/portage/package.use" ]; then
     cat > /etc/portage/package.use/router <<'EOF'
 sys-apps/busybox syslog mdev make-symlinks
 app-misc/fastfetch -chafa -ddcutil -drm -efl -elf -vulkan -xrandr -dbus -gnome -imagemagick -lua -opencl -opengl -pulseaudio -sqlite -test -vaapi -vdpau -wayland -X -xcb
+sys-apps/systemd-utils -udev
 EOF
 else
     # 如果是文件或不存在，直接写入
     cat > /etc/portage/package.use <<'EOF'
 sys-apps/busybox syslog mdev make-symlinks
 app-misc/fastfetch -chafa -ddcutil -drm -efl -elf -vulkan -xrandr -dbus -gnome -imagemagick -lua -opencl -opengl -pulseaudio -sqlite -test -vaapi -vdpau -wayland -X -xcb
+sys-apps/systemd-utils -udev
 EOF
 fi
 
