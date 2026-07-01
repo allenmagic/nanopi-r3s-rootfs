@@ -121,11 +121,15 @@ if [ -d "/etc/portage/package.use" ]; then
     # 如果是目录，写入子文件
     cat > /etc/portage/package.use/router <<'EOF'
 sys-apps/busybox syslog mdev make-symlinks
+net-misc/chrony -rtc
+app-misc/fastfetch -chafa -ddcutil -drm -efl -elf -vulkan -xrandr -dbus -gnome -imagemagick -lua -opencl -opengl -pulseaudio -sqlite -test -vaapi -vdpau -wayland -X -xcb
 EOF
 else
     # 如果是文件或不存在，直接写入
     cat > /etc/portage/package.use <<'EOF'
 sys-apps/busybox syslog mdev make-symlinks
+net-misc/chrony -rtc
+app-misc/fastfetch -chafa -ddcutil -drm -efl -elf -vulkan -xrandr -dbus -gnome -imagemagick -lua -opencl -opengl -pulseaudio -sqlite -test -vaapi -vdpau -wayland -X -xcb
 EOF
 fi
 
@@ -197,10 +201,11 @@ fi
 # 批量 emerge 安装到 ROOT
 # 默认 --binpkg-respect-use=y：拒绝 USE 不匹配的 binpkg，避免 systemd/GNOME 依赖链
 # 被二进制包带入 OpenRC 目标 rootfs。缺失的包自动回退到源码编译
-# --autounmask=y --autounmask-continue=y：自动处理 USE/keyword/unmask 变更并继续
+# --autounmask=y --autounmask-continue=y --autounmask-keep-masks=y：
+# 自动处理 USE/keyword 变更并继续，但保留 package.mask/router 中已有的 mask
 if [ -n "${_PM_PKGS_}" ]; then
     echo "[setup] 执行: ROOT=${TARGET_ROOTFS} emerge ${_PM_PKGS_}"
-    ROOT="${TARGET_ROOTFS}" emerge --buildpkg=n --autounmask=y --autounmask-continue=y ${_PM_PKGS_}
+    ROOT="${TARGET_ROOTFS}" emerge --buildpkg=n --autounmask=y --autounmask-continue=y --autounmask-keep-masks=y ${_PM_PKGS_}
 fi
 
 # 处理 [dl@] 下载包（直接下载到 TARGET_ROOTFS）

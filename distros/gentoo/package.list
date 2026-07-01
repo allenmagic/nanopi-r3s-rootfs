@@ -19,6 +19,7 @@
 [pm] sys-apps/util-linux
 [pm] sys-libs/timezone-data
 [pm] sys-apps/openrc
+[pm] app-misc/fastfetch
 
 # ========== sing-box ==========
 [pm] net-dns/dnsmasq
