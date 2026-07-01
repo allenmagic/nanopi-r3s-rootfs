@@ -121,14 +121,12 @@ if [ -d "/etc/portage/package.use" ]; then
     # 如果是目录，写入子文件
     cat > /etc/portage/package.use/router <<'EOF'
 sys-apps/busybox syslog mdev make-symlinks
-net-misc/chrony -rtc
 app-misc/fastfetch -chafa -ddcutil -drm -efl -elf -vulkan -xrandr -dbus -gnome -imagemagick -lua -opencl -opengl -pulseaudio -sqlite -test -vaapi -vdpau -wayland -X -xcb
 EOF
 else
     # 如果是文件或不存在，直接写入
     cat > /etc/portage/package.use <<'EOF'
 sys-apps/busybox syslog mdev make-symlinks
-net-misc/chrony -rtc
 app-misc/fastfetch -chafa -ddcutil -drm -efl -elf -vulkan -xrandr -dbus -gnome -imagemagick -lua -opencl -opengl -pulseaudio -sqlite -test -vaapi -vdpau -wayland -X -xcb
 EOF
 fi
@@ -269,6 +267,79 @@ if [ -f "${_PKG_LIST_}" ]; then
     done < "${_PKG_LIST_}"
 fi
 
+
+# ============================================================
+#  2.5. chrony 二进制安装（从 binhost，避免 systemd-utils/python）
+# ============================================================
+echo "[setup] === 安装 chrony 二进制 ==="
+_CHRONY_URL_BASE="https://distfiles.gentoo.org/releases/arm64/binpackages/23.0/arm64"
+_CHRONY_TMP="/tmp/chrony-dl"
+mkdir -p "${_CHRONY_TMP}"
+
+# 从 binhost Packages 索引解析 chrony 文件路径（动态适配版本）
+echo "[setup]   解析 binhost 中 chrony 路径 ..."
+_CHRONY_PATH="$(curl -fsSL "${_CHRONY_URL_BASE}/Packages" \
+    | grep -A20 'CPV: net-misc/chrony' \
+    | grep '^PATH:' \
+    | awk '{print $2}' \
+    | head -1)"
+if [ -z "${_CHRONY_PATH}" ]; then
+    echo "[setup]   错误：无法从 binhost 找到 chrony 二进制包" >&2
+    exit 1
+fi
+echo "[setup]   下载 ${_CHRONY_URL_BASE}/${_CHRONY_PATH} ..."
+curl -fsSL -o "${_CHRONY_TMP}/chrony.gpkg.tar" "${_CHRONY_URL_BASE}/${_CHRONY_PATH}" || {
+    echo "[setup]   错误：chrony 下载失败" >&2; exit 1
+}
+
+# 解压 gpkg.tar → 提取 image.tar.xz
+_CHRONY_PKGDIR="$(echo "${_CHRONY_TMP}"/chrony-*)"
+_CHRONY_IMAGE_DIR="${_CHRONY_TMP}/image-extract"
+mkdir -p "${_CHRONY_IMAGE_DIR}"
+tar xf "${_CHRONY_PKGDIR}/image.tar.xz" -C "${_CHRONY_IMAGE_DIR}/"
+
+# 安装二进制（gpkg 内路径为 ./image/usr/...）
+cp "${_CHRONY_IMAGE_DIR}/image/usr/sbin/chronyd" "${TARGET_ROOTFS}/usr/sbin/"
+cp "${_CHRONY_IMAGE_DIR}/image/usr/bin/chronyc"   "${TARGET_ROOTFS}/usr/bin/"
+chmod 755 "${TARGET_ROOTFS}/usr/sbin/chronyd" "${TARGET_ROOTFS}/usr/bin/chronyc"
+
+# 安装 OpenRC 服务（使用 binpkg 自带的 init 脚本）
+cp "${_CHRONY_IMAGE_DIR}/image/etc/init.d/chronyd" "${TARGET_ROOTFS}/etc/init.d/chronyd"
+chmod 755 "${TARGET_ROOTFS}/etc/init.d/chronyd"
+
+# 创建 /run/chrony 目录（在 init 脚本中通过 start_pre 保证）
+sed -i '/^start()/i\
+start_pre() {\
+    checkpath -d -m 0755 /run/chrony\
+}' "${TARGET_ROOTFS}/etc/init.d/chronyd"
+
+# conf.d：去掉 -u ntp（路由器用 root 运行即可）
+cat > "${TARGET_ROOTFS}/etc/conf.d/chronyd" <<'CONFEOF'
+CFGFILE="/etc/chrony/chrony.conf"
+ARGS="-F 2"
+CONFEOF
+
+# chrony.conf（最小路由器配置）
+mkdir -p "${TARGET_ROOTFS}/etc/chrony"
+cat > "${TARGET_ROOTFS}/etc/chrony/chrony.conf" <<'CONFEOF'
+# NTP 服务器
+pool pool.ntp.org iburst
+
+# 漂移文件
+driftfile /var/lib/chrony/drift
+
+# 前 3 次更新允许步进（offset > 1 秒）
+makestep 1.0 3
+
+# 内核 RTC 同步
+rtcsync
+CONFEOF
+
+# 数据目录
+mkdir -p "${TARGET_ROOTFS}/var/lib/chrony" "${TARGET_ROOTFS}/var/log/chrony"
+
+# 清理
+rm -rf "${_CHRONY_TMP}"
 # 配置时区
 if [ -f "/usr/share/zoneinfo/${TIMEZONE}" ]; then
     cp "/usr/share/zoneinfo/${TIMEZONE}" "${TARGET_ROOTFS}/etc/localtime" 2>/dev/null || true

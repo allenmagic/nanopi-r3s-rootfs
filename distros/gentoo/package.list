@@ -12,8 +12,8 @@
 [pm] sys-apps/busybox
 [pm] app-shells/bash
 [pm] net-misc/openssh
-[pm] net-misc/chrony
 [pm] net-misc/curl
+# chrony 改为从 binhost 下载二进制（避免拉入 systemd-utils/python）
 [pm] sys-apps/kmod
 [pm] sys-apps/iproute2
 [pm] sys-apps/util-linux
