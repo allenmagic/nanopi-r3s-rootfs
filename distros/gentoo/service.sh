@@ -14,7 +14,7 @@ enable_router_services() {
 
     # --- base 应用服务 ---
     _enable_service sshd
-    _enable_service chronyd
+    _enable_service busybox-ntpd
     _enable_nftables
 
     # --- 根据 INFRA 启用组件服务 ---

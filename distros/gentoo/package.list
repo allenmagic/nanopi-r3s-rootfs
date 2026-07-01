@@ -13,7 +13,7 @@
 [pm] app-shells/bash
 [pm] net-misc/openssh
 [pm] net-misc/curl
-# chrony 改为从 binhost 下载二进制（避免拉入 systemd-utils/python）
+# 时间同步由 busybox ntpd 负责（无需额外包）
 [pm] sys-apps/kmod
 [pm] sys-apps/iproute2
 [pm] sys-apps/util-linux
