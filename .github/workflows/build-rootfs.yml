@@ -1,7 +1,7 @@
 name: Build Router Rootfs
 
 env:
-  ALL_DISTROS: '["void","devuan","debian","alpine"]'  # 与 workflow_dispatch.inputs.distro.options 保持同步
+  ALL_DISTROS: '["void","devuan","debian","alpine","gentoo"]'  # 与 workflow_dispatch.inputs.distro.options 保持同步
   ALL_INFRAS: '["sing-box","landscape"]'     # 路由系统组件
 
 on:
@@ -12,7 +12,7 @@ on:
         type: choice
         required: true
         default: all
-        options: [all, void, devuan, debian, alpine]
+        options: [all, void, devuan, debian, alpine, gentoo]
       infra:
         description: "路由系统组件"
         type: choice
@@ -78,7 +78,7 @@ jobs:
             xz-utils zstd file binutils \
             curl ca-certificates wget \
             mmdebstrap debootstrap debian-archive-keyring \
-            gpgv
+            gpgv gnupg
 
       - name: Build ${{ matrix.distro }} rootfs (${{ matrix.infra }})
         run: |
