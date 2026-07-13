@@ -32,23 +32,23 @@ _replace_placeholders() {
     for _f_ in /etc/dnsmasq.d/*.conf; do
         [ -f "${_f_}" ] || continue
         sed -i \
-            -e "s/__LAN_IFACE__/${LAN_IFACE}/g" \
-            -e "s/__LAN_IP__/${LAN_IP}/g" \
-            -e "s/__DHCP_RANGE_START__/${DHCP_RANGE_START}/g" \
-            -e "s/__DHCP_RANGE_END__/${DHCP_RANGE_END}/g" \
-            -e "s/__DHCP_LEASE_TIME__/${DHCP_LEASE_TIME}/g" \
-            -e "s/__LAN_NETMASK__/${LAN_NETMASK}/g" \
-            -e "s/__LAN_NETWORK__/${LAN_NETWORK}/g" \
+            -e "s|__LAN_IFACE__|${LAN_IFACE}|g" \
+            -e "s|__LAN_IP__|${LAN_IP}|g" \
+            -e "s|__DHCP_RANGE_START__|${DHCP_RANGE_START}|g" \
+            -e "s|__DHCP_RANGE_END__|${DHCP_RANGE_END}|g" \
+            -e "s|__DHCP_LEASE_TIME__|${DHCP_LEASE_TIME}|g" \
+            -e "s|__LAN_NETMASK__|${LAN_NETMASK}|g" \
+            -e "s|__LAN_NETWORK__|${LAN_NETWORK}|g" \
             "${_f_}"
     done
     # nftables vars
     _NFT="/etc/nftables.d/00-inet-vars.nft"
     if [ -f "${_NFT}" ]; then
         sed -i \
-            -e "s/__WAN_IFACE__/${WAN_IFACE}/g" \
-            -e "s/__LAN_IFACE__/${LAN_IFACE}/g" \
-            -e "s/__ROUTER_LAN_IP__/${LAN_IP}/g" \
-            -e "s/__LAN_NET__/${LAN_NETWORK}/g" \
+            -e "s|__WAN_IFACE__|${WAN_IFACE}|g" \
+            -e "s|__LAN_IFACE__|${LAN_IFACE}|g" \
+            -e "s|__ROUTER_LAN_IP__|${LAN_IP}|g" \
+            -e "s|__LAN_NET__|${LAN_NETWORK}|g" \
             "${_NFT}"
     fi
 }
