@@ -9,19 +9,20 @@ check_rootfs() {
     _OK=0; _FAIL=0
 
     # ---------- 1. 关键二进制（在 TARGET_ROOTFS 内查找）----------
-    _check_bin() { _b_="$1" _path_="$2"
-        if [ -x "${TARGET_ROOTFS}${_path_}" ]; then
-            echo "  ✓ $_b_"; _OK=$((_OK + 1))
-        else
-            echo "  ✗ $_b_ 缺失!"; _FAIL=$((_FAIL + 1))
-        fi
+    _check_bin() { _b_="$1"; shift
+        for _p_ in "$@"; do
+            if [ -x "${TARGET_ROOTFS}${_p_}" ]; then
+                echo "  ✓ $_b_"; _OK=$((_OK + 1)); return 0
+            fi
+        done
+        echo "  ✗ $_b_ 缺失!"; _FAIL=$((_FAIL + 1))
     }
     echo "[check] 二进制:"
-    _check_bin bash /bin/bash
-    _check_bin busybox /bin/busybox
-    _check_bin sshd /usr/sbin/sshd
-    _check_bin dnsmasq /usr/sbin/dnsmasq
-    _check_bin nft /usr/sbin/nft
+    _check_bin bash     /bin/bash
+    _check_bin busybox  /bin/busybox
+    _check_bin sshd     /usr/sbin/sshd
+    _check_bin dnsmasq  /usr/sbin/dnsmasq /usr/bin/dnsmasq
+    _check_bin nft      /usr/sbin/nft /sbin/nft
     _check_bin tailscaled /usr/local/bin/tailscaled
     _check_bin sing-box /usr/local/bin/sing-box
     _check_bin cloudflared /usr/local/bin/cloudflared
