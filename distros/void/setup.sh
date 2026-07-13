@@ -68,10 +68,6 @@ fi
 # ============================================================
 echo "[setup] === 部署出厂配置 ==="
 
-# 网络配置（先于其他配置，因为占位符替换需要先完成）
-. /network.sh
-configure_network
-
 # 遍历 INFRA 组件，部署各自的 config
 _OLD_IFS_="${IFS}"; IFS=","
 for _comp_ in ${INFRA:-sing-box}; do
@@ -103,6 +99,12 @@ find /etc \( -name '*.md' -o -name '*.example' \) -exec rm -f {} + 2>/dev/null |
 if [ ! -e /usr/local/bin/sing-box ] && [ -x /usr/bin/sing-box ]; then
     ln -s /usr/bin/sing-box /usr/local/bin/sing-box
 fi
+
+# ============================================================
+#  2.5. 网络配置（config 文件拷贝完成后替换占位符 + 生成接口配置）
+# ============================================================
+. /network.sh
+configure_network
 
 # ============================================================
 #  3. 系统设置

@@ -403,11 +403,6 @@ fi
 #  3. 部署配置文件到目标 rootfs
 # ============================================================
 echo "[setup] === 部署出厂配置到 ${TARGET_ROOTFS} ==="
-
-# 网络配置（先于其他配置，因为占位符替换需要先完成）
-. /network.sh
-configure_network
-
 _OLD_IFS_="${IFS}"; IFS=","
 for _comp_ in ${INFRA:-sing-box}; do
     IFS="${_OLD_IFS_}"
@@ -438,6 +433,12 @@ chmod +x "${TARGET_ROOTFS}"/etc/local.d/*.start 2>/dev/null || true
 if [ ! -e "${TARGET_ROOTFS}/usr/local/bin/sing-box" ] && [ -x "${TARGET_ROOTFS}/usr/bin/sing-box" ]; then
     ln -s /usr/bin/sing-box "${TARGET_ROOTFS}/usr/local/bin/sing-box"
 fi
+
+# ============================================================
+#  3.5. 网络配置（config 文件拷贝完成后替换占位符 + 生成接口配置）
+# ============================================================
+. /network.sh
+configure_network
 
 # ============================================================
 #  4. 系统设置（在目标 rootfs 内配置）
