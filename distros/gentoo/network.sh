@@ -1,7 +1,7 @@
 #
 # distros/gentoo/network.sh —— Gentoo (OpenRC/netifrc) 网络配置
-#   被 setup.sh source 调用
-#   定义 configure_network() 函数
+#   被 setup.sh source 调用，运行在 stage3 环境内
+#   操作目标为 TARGET_ROOTFS（/gentoo-rootfs），不是当前根文件系统
 #
 
 configure_network() {
@@ -11,14 +11,14 @@ configure_network() {
     _replace_placeholders
 
     # netifrc 配置：WAN DHCP + LAN static
-    cat > /etc/conf.d/net << EOF
+    cat > "${TARGET_ROOTFS}/etc/conf.d/net" << EOF
 config_${WAN_IFACE}="dhcp"
 config_${LAN_IFACE}="${LAN_IP}/${LAN_CIDR}"
 EOF
 
     # 激活 netifrc 接口（符号链接 /etc/init.d/net.lo -> net.<iface>）
-    ln -sf net.lo /etc/init.d/net.${LAN_IFACE}
-    rc-update add net.${LAN_IFACE} default
+    ln -sf net.lo "${TARGET_ROOTFS}/etc/init.d/net.${LAN_IFACE}"
+    ln -sf net.lo "${TARGET_ROOTFS}/etc/init.d/net.${WAN_IFACE}"
 
     echo "[network] === 网络配置完成 ==="
 }
@@ -26,7 +26,7 @@ EOF
 # 通用占位符替换（所有 distro 共用逻辑）
 _replace_placeholders() {
     # dnsmasq DHCP 配置
-    for _f_ in /etc/dnsmasq.d/*.conf; do
+    for _f_ in "${TARGET_ROOTFS}"/etc/dnsmasq.d/*.conf; do
         [ -f "${_f_}" ] || continue
         sed -i \
             -e "s|__LAN_IFACE__|${LAN_IFACE}|g" \
@@ -39,7 +39,7 @@ _replace_placeholders() {
             "${_f_}"
     done
     # nftables vars
-    _NFT="/etc/nftables.d/00-inet-vars.nft"
+    _NFT="${TARGET_ROOTFS}/etc/nftables.d/00-inet-vars.nft"
     if [ -f "${_NFT}" ]; then
         sed -i \
             -e "s|__WAN_IFACE__|${WAN_IFACE}|g" \

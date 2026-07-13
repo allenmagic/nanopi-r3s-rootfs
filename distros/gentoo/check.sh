@@ -1,29 +1,30 @@
 #
 # distros/gentoo/check.sh —— Gentoo (openrc) 构建完整性检查
-#   被 setup.sh source 调用，在清理步骤之前执行
+#   被 setup.sh source 调用，运行在 stage3 环境内
+#   检查目标为 TARGET_ROOTFS（/gentoo-rootfs），不是当前根文件系统
 #
 
 check_rootfs() {
     echo "[check] === 构建完整性检查 ==="
     _OK=0; _FAIL=0
 
-    # ---------- 1. 关键二进制 ----------
-    _check_bin() { _b_="$1"
-        if command -v "$_b_" >/dev/null 2>&1; then
+    # ---------- 1. 关键二进制（在 TARGET_ROOTFS 内查找）----------
+    _check_bin() { _b_="$1" _path_="$2"
+        if [ -x "${TARGET_ROOTFS}${_path_}" ]; then
             echo "  ✓ $_b_"; _OK=$((_OK + 1))
         else
             echo "  ✗ $_b_ 缺失!"; _FAIL=$((_FAIL + 1))
         fi
     }
     echo "[check] 二进制:"
-    _check_bin bash
-    _check_bin sshd
-    _check_bin busybox
-    _check_bin dnsmasq
-    _check_bin nft
-    _check_bin tailscaled
-    _check_bin sing-box
-    _check_bin cloudflared
+    _check_bin bash /bin/bash
+    _check_bin busybox /bin/busybox
+    _check_bin sshd /usr/sbin/sshd
+    _check_bin dnsmasq /usr/sbin/dnsmasq
+    _check_bin nft /usr/sbin/nft
+    _check_bin tailscaled /usr/local/bin/tailscaled
+    _check_bin sing-box /usr/local/bin/sing-box
+    _check_bin cloudflared /usr/local/bin/cloudflared
 
     # ---------- 2. 配置文件占位符残留 ----------
     _check_no_placeholder() { _f_="$1"
@@ -36,14 +37,14 @@ check_rootfs() {
         fi
     }
     echo "[check] 配置占位符:"
-    for _f_ in /etc/dnsmasq.d/*.conf /etc/nftables.d/*.nft; do
+    for _f_ in "${TARGET_ROOTFS}"/etc/dnsmasq.d/*.conf "${TARGET_ROOTFS}"/etc/nftables.d/*.nft; do
         [ -f "$_f_" ] && _check_no_placeholder "$_f_"
     done
 
     # ---------- 3. openrc 服务启用 ----------
     _check_openrc() { _s_="$1" _rl_="${2:-default}"
-        if [ -x "/etc/init.d/$_s_" ]; then
-            if [ -L "/etc/runlevels/$_rl_/$_s_" ]; then
+        if [ -x "${TARGET_ROOTFS}/etc/init.d/$_s_" ]; then
+            if [ -L "${TARGET_ROOTFS}/etc/runlevels/$_rl_/$_s_" ]; then
                 echo "  ✓ $_s_ ($_rl_)"; _OK=$((_OK + 1))
             else
                 echo "  ✗ $_s_ init 脚本存在但未在 $_rl_ runlevel 注册"; _FAIL=$((_FAIL + 1))
@@ -69,7 +70,7 @@ check_rootfs() {
     # ---------- 4. 额外检查：自定义 init 脚本完整性 ----------
     echo "[check] Gentoo 自定义 init 脚本:"
     for _s_ in busybox-ntpd syslog crond; do
-        if [ -x "/etc/init.d/$_s_" ]; then
+        if [ -x "${TARGET_ROOTFS}/etc/init.d/$_s_" ]; then
             echo "  ✓ $_s_"; _OK=$((_OK + 1))
         else
             echo "  ✗ $_s_ init 脚本缺失!"; _FAIL=$((_FAIL + 1))
