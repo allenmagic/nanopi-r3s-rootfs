@@ -163,6 +163,9 @@ cp -r "${REPO_ROOT}/infra" "${STAGE3_DIR}/infra"
 "${REPO_ROOT}/tools/inject-secrets.sh" write "${STAGE3_DIR}" 2>/dev/null || true
 cp -f "${REPO_ROOT}/tools/inject-secrets.sh" "${STAGE3_DIR}/inject-secrets.sh" 2>/dev/null || true
 cp -f "${SCRIPT_DIR}/package.list" "${STAGE3_DIR}/package.list"
+	cp -f "${SCRIPT_DIR}/network.sh" "${STAGE3_DIR}/network.sh"
+	cp -f "${SCRIPT_DIR}/check.sh" "${STAGE3_DIR}/check.sh"
+	cp -f "${REPO_ROOT}/network.env" "${STAGE3_DIR}/network.env"
 # ---------- 第四+五步：执行 setup（在 stage3 内，安装到 /gentoo-rootfs）----------
 echo "[gentoo] 4+5. 执行 setup（用 ROOT= emerge 安装到目标 rootfs）..."
 cp -f "${SETUP_SCRIPT}" "${STAGE3_DIR}/setup.sh"
@@ -192,6 +195,9 @@ rm -f "${STAGE3_DIR}/setup.sh"
 rm -f "${STAGE3_DIR}/inject-secrets.sh"
 rm -f "${STAGE3_DIR}/download-helpers.sh"
 rm -f "${STAGE3_DIR}/package.list"
+rm -f "${STAGE3_DIR}/network.sh"
+rm -f "${STAGE3_DIR}/check.sh"
+rm -f "${STAGE3_DIR}/network.env"
 
 rm -rf "${STAGE3_DIR}/infra"
 

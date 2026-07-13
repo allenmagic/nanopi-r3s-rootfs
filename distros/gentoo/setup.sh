@@ -404,6 +404,10 @@ fi
 # ============================================================
 echo "[setup] === 部署出厂配置到 ${TARGET_ROOTFS} ==="
 
+# 网络配置（先于其他配置，因为占位符替换需要先完成）
+. /network.sh
+configure_network
+
 _OLD_IFS_="${IFS}"; IFS=","
 for _comp_ in ${INFRA:-sing-box}; do
     IFS="${_OLD_IFS_}"
@@ -545,6 +549,12 @@ esac
 if [ -x /inject-secrets.sh ]; then
     TARGET_ROOT="${TARGET_ROOTFS}" /bin/sh /inject-secrets.sh
 fi
+
+# ============================================================
+#  5.5. 构建完整性检查
+# ============================================================
+. /check.sh
+check_rootfs
 
 # ============================================================
 #  6. 清理
