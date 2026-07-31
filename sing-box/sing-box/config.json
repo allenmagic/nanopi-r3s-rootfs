@@ -103,6 +103,10 @@
         "action": "hijack-dns"
       },
       {
+        "source_ip_cidr": ["192.168.8.180/32"],
+        "outbound": "direct-out"
+      },
+      {
         "protocol": "bittorrent",
         "outbound": "direct-out"
       },
@@ -111,16 +115,16 @@
         "outbound": "block"
       },
       {
+        "rule_set": ["proxy-list"],
+        "outbound": "ss-out"
+      },
+      {
         "process_path": ["/usr/sbin/tailscaled", "/usr/bin/tailscale"],
         "outbound": "direct-out"
       },
       {
         "ip_cidr": ["100.64.0.0/10"],
         "outbound": "hs-aliyun"
-      },
-      { 
-         "source_ip_cidr": ["192.168.8.180/32"],
-         "outbound": "direct-out"
       },
       {
         "ip_is_private": true,

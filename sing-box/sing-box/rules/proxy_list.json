@@ -12,7 +12,7 @@
         "docker.com",
         "docker.io",
         "docker-registry.com",
-        "sing-box.sagernet.org"
+        "sing-box.sagernet.org",
         "claude.ai"
       ],
       "domain_suffix": [
@@ -24,7 +24,7 @@
         ".docker.io",
         ".docker-registry.com",
         ".openai.com",
-        ".sing-box.sagernet.org"
+        ".sing-box.sagernet.org",
         ".claude.ai"
       ]
     }
