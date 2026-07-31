@@ -6,7 +6,7 @@
 #   [dl@<url>] <binary_name>      —— 下载 URL 到 /usr/local/bin/<binary_name>
 #                                   自动解压 .tar.gz，查找二进制文件
 #
-# 三段式：base / router / landscape
+# 三段式：base / sing-box / landscape
 # ============================================================
 
 # ========== base ==========
@@ -14,14 +14,17 @@
 [pm] openssh-server
 [pm] chrony
 [pm] curl
+[pm] nano
 [pm] ncurses-bin
 [pm] ncurses-base
-
-# ========== sing-box ==========
 [pm] dnsmasq
 [pm] nftables
+[pm] fastfetch
 [dl@https://pkgs.tailscale.com/stable/tailscale_latest_arm64.tgz] tailscale
-[dl@https://github.com/sagernet/sing-box/releases/download/v1.13.11/sing-box-1.13.11-linux-arm64.tar.gz] sing-box
 [dl@https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64] cloudflared
+
+# ========== sing-box ==========
+[dl@https://github.com/sagernet/sing-box/releases/download/v1.13.11/sing-box-1.13.11-linux-arm64.tar.gz] sing-box
+
 
 # ========== landscape ==========

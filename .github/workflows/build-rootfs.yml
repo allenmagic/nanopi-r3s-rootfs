@@ -2,7 +2,7 @@ name: Build Router Rootfs
 
 env:
   ALL_DISTROS: '["void","devuan","debian","alpine","gentoo"]'  # 与 workflow_dispatch.inputs.distro.options 保持同步
-  ALL_INFRAS: '["sing-box","landscape"]'     # 路由系统组件
+  ALL_INFRAS: '["base","sing-box"]'     # 路由系统组件
 
 on:
   workflow_dispatch:
@@ -17,8 +17,8 @@ on:
         description: "路由系统组件"
         type: choice
         required: true
-        default: sing-box
-        options: [all, sing-box, landscape]
+        default: base
+        options: [all, base, sing-box]
       mirror:
         description: "镜像源"
         type: choice

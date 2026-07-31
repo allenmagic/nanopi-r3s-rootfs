@@ -32,11 +32,11 @@ if [ -f "${_PKG_LIST_}" ]; then
                 continue
                 ;;
             '# ========== sing-box'*)
-                case ",${INFRA:-sing-box}," in *",sing-box,"*) _section_="packages" ;; *) _section_="skip" ;; esac
+                case ",${INFRA:-base}," in *",sing-box,"*) _section_="packages" ;; *) _section_="skip" ;; esac
                 continue
                 ;;
             '# ========== landscape'*)
-                case ",${INFRA:-sing-box}," in *",landscape,"*) _section_="packages" ;; *) _section_="skip" ;; esac
+                _section_="skip"
                 continue
                 ;;
             '#'*) continue ;;
@@ -72,7 +72,7 @@ apk del tzdata 2>/dev/null || true
 # ============================================================
 echo "[setup] === 部署出厂配置 ==="
 _OLD_IFS_="${IFS}"; IFS=","
-for _comp_ in ${INFRA:-sing-box}; do
+for _comp_ in ${INFRA:-base}; do
     IFS="${_OLD_IFS_}"
     _comp_="$(echo "${_comp_}" | tr -d '[:space:]')"
     [ -z "${_comp_}" ] && continue

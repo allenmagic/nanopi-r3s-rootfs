@@ -6,7 +6,7 @@
 #   [dl@<url>] <binary_name>      —— 下载 URL 到 /usr/local/bin/<binary_name>
 #                                   自动解压 .tar.gz，查找二进制文件
 #
-# 三段式：base / router / landscape
+# 三段式：base / sing-box / landscape
 # ============================================================
 
 # ========== base ==========
@@ -14,16 +14,17 @@
 [pm] openssh
 [pm] chrony
 [pm] curl
+[pm] nano
 [pm] ncurses
 [pm] ncurses-base
-
-# ========== sing-box ==========
 [pm] dnsmasq
 [pm] nftables
 [pm] runit-nftables
 [pm] tailscale
 [pm] iproute2
 [pm] cloudflared
+
+# ========== sing-box ==========
 [pm] sing-box
 
 # ========== landscape ==========

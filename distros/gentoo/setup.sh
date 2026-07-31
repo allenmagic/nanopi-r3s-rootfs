@@ -192,11 +192,11 @@ if [ -f "${_PKG_LIST_}" ]; then
                 continue
                 ;;
             '# ========== sing-box'*)
-                case ",${INFRA:-sing-box}," in *",sing-box,"*) _section_="packages" ;; *) _section_="skip" ;; esac
+                case ",${INFRA:-base}," in *",sing-box,"*) _section_="packages" ;; *) _section_="skip" ;; esac
                 continue
                 ;;
             '# ========== landscape'*)
-                case ",${INFRA:-sing-box}," in *",landscape,"*) _section_="packages" ;; *) _section_="skip" ;; esac
+                _section_="skip"
                 continue
                 ;;
             '#'*) continue ;;
@@ -248,11 +248,11 @@ if [ -f "${_PKG_LIST_}" ]; then
         case "${_line_}" in
             '# ========== base'*) _section_="base"; continue ;;
             '# ========== sing-box'*)
-                case ",${INFRA:-sing-box}," in *",sing-box,"*) _section_="packages" ;; *) _section_="skip" ;; esac
+                case ",${INFRA:-base}," in *",sing-box,"*) _section_="packages" ;; *) _section_="skip" ;; esac
                 continue
                 ;;
             '# ========== landscape'*)
-                case ",${INFRA:-sing-box}," in *",landscape,"*) _section_="packages" ;; *) _section_="skip" ;; esac
+                _section_="skip"
                 continue
                 ;;
             '#'*) continue ;;
@@ -404,7 +404,7 @@ fi
 # ============================================================
 echo "[setup] === 部署出厂配置到 ${TARGET_ROOTFS} ==="
 _OLD_IFS_="${IFS}"; IFS=","
-for _comp_ in ${INFRA:-sing-box}; do
+for _comp_ in ${INFRA:-base}; do
     IFS="${_OLD_IFS_}"
     _comp_="$(echo "${_comp_}" | tr -d '[:space:]')"
     [ -z "${_comp_}" ] && continue
@@ -531,7 +531,7 @@ _enable_service_target busybox-ntpd default
 _enable_service_target nftables default
 
 # 根据 INFRA 启用组件服务
-case ",${INFRA:-sing-box}," in
+case ",${INFRA:-base}," in
     *",sing-box,"*)
         echo "[service] --- sing-box 服务 ---"
         _enable_service_target dnsmasq default

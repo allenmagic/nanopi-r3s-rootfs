@@ -159,9 +159,8 @@ chroot_enter "${STAGE3_DIR}"
 # ---------- 第三+步：拷贝安装框架到 stage3 ----------
 echo "[gentoo] 3+. 拷贝安装框架到 stage3 ..."
 cp -f "${REPO_ROOT}/lib/download-helpers.sh" "${STAGE3_DIR}/download-helpers.sh"
-cp -r "${REPO_ROOT}/common" "${STAGE3_DIR}/common"
+cp -r "${REPO_ROOT}/base" "${STAGE3_DIR}/base"
 cp -r "${REPO_ROOT}/sing-box" "${STAGE3_DIR}/sing-box"
-cp -r "${REPO_ROOT}/landscape" "${STAGE3_DIR}/landscape"
 "${REPO_ROOT}/tools/inject-secrets.sh" write "${STAGE3_DIR}" 2>/dev/null || true
 cp -f "${REPO_ROOT}/tools/inject-secrets.sh" "${STAGE3_DIR}/inject-secrets.sh" 2>/dev/null || true
 cp -f "${SCRIPT_DIR}/package.list" "${STAGE3_DIR}/package.list"
@@ -174,7 +173,7 @@ cp -f "${SETUP_SCRIPT}" "${STAGE3_DIR}/setup.sh"
 chmod +x "${STAGE3_DIR}/setup.sh"
 chroot_run "${STAGE3_DIR}" /usr/bin/env \
     DISTRO="${DISTRO}" \
-    INFRA="${INFRA:-sing-box}" \
+    INFRA="${INFRA:-base}" \
     ROOT_PASSWORD="${ROOT_PASSWORD}" \
     HOSTNAME_VAL="${HOSTNAME_VAL}" \
     TARGET_ROOTFS="/gentoo-rootfs" \
@@ -201,7 +200,7 @@ rm -f "${STAGE3_DIR}/network.sh"
 rm -f "${STAGE3_DIR}/check.sh"
 rm -f "${STAGE3_DIR}/network.env"
 
-rm -rf "${STAGE3_DIR}/common" "${STAGE3_DIR}/sing-box" "${STAGE3_DIR}/landscape"
+rm -rf "${STAGE3_DIR}/base" "${STAGE3_DIR}/sing-box"
 
 echo "[gentoo] base rootfs 构建完成：${ROOTFS}"
 

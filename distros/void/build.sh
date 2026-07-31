@@ -110,9 +110,8 @@ chroot_enter "${ROOTFS}"
 # ---------- 第三+步：拷贝安装框架到 rootfs ----------
 echo "[void] 3+. 拷贝安装框架到 rootfs ..."
 cp -f "${REPO_ROOT}/lib/download-helpers.sh" "${ROOTFS}/download-helpers.sh"
-cp -r "${REPO_ROOT}/common" "${ROOTFS}/common"
+cp -r "${REPO_ROOT}/base" "${ROOTFS}/base"
 cp -r "${REPO_ROOT}/sing-box" "${ROOTFS}/sing-box"
-cp -r "${REPO_ROOT}/landscape" "${ROOTFS}/landscape"
 	"${REPO_ROOT}/tools/inject-secrets.sh" write "${ROOTFS}"
 	cp -f "${REPO_ROOT}/tools/inject-secrets.sh" "${ROOTFS}/inject-secrets.sh"
 cp -f "${SCRIPT_DIR}/package.list" "${ROOTFS}/package.list"
@@ -127,7 +126,7 @@ cp -f "${SETUP_SCRIPT}" "${ROOTFS}/setup.sh"
 chmod +x "${ROOTFS}/setup.sh"
 chroot_run "${ROOTFS}" /usr/bin/env \
     DISTRO="${DISTRO}" \
-    INFRA="${INFRA:-sing-box}" \
+    INFRA="${INFRA:-base}" \
     ROOT_PASSWORD="${ROOT_PASSWORD}" \
     HOSTNAME_VAL="${HOSTNAME_VAL}" \
     REPO="${REPO}" \
@@ -140,7 +139,7 @@ rm -f "${ROOTFS}/service.sh"
 rm -f "${ROOTFS}/network.sh"
 rm -f "${ROOTFS}/check.sh"
 rm -f "${ROOTFS}/network.env"
-rm -rf "${ROOTFS}/common" "${ROOTFS}/sing-box" "${ROOTFS}/landscape"
+rm -rf "${ROOTFS}/base" "${ROOTFS}/sing-box"
 
 echo "[void] base rootfs 构建完成：${ROOTFS}"
 

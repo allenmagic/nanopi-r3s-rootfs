@@ -14,6 +14,7 @@
 [pm] app-shells/bash
 [pm] net-misc/openssh
 [pm] net-misc/curl
+[pm] app-editors/nano
 # 时间同步由 busybox ntpd 负责（无需额外包）
 [pm] sys-apps/kmod
 [pm] sys-apps/iproute2
@@ -21,13 +22,13 @@
 [pm] sys-libs/timezone-data
 [pm] sys-apps/openrc
 [pm] app-misc/fastfetch
-
-# ========== sing-box ==========
 [pm] net-dns/dnsmasq
 [pm] net-firewall/nftables
 [dl@https://pkgs.tailscale.com/stable/tailscale_latest_arm64.tgz] tailscale
-[dl@https://pkgs.tailscale.com/stable/tailscale_latest_arm64.tgz] tailscaled
-[dl@https://github.com/sagernet/sing-box/releases/download/v1.13.11/sing-box-1.13.11-linux-arm64.tar.gz] sing-box
 [dl@https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64] cloudflared
+
+# ========== sing-box ==========
+[dl@https://github.com/sagernet/sing-box/releases/download/v1.13.11/sing-box-1.13.11-linux-arm64.tar.gz] sing-box
+
 
 # ========== landscape ==========

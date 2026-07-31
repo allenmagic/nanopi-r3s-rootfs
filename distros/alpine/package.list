@@ -19,12 +19,13 @@
 [pm] util-linux
 [pm] tzdata
 [pm] busybox-openrc
-
-# ========== sing-box ==========
 [pm] dnsmasq
 [pm] nftables
 [pm] tailscale
-[pm] sing-box
+[pm] fastfetch
 [dl@https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64] cloudflared
+
+# ========== sing-box ==========
+[pm] sing-box
 
 # ========== landscape ==========
