@@ -23,6 +23,7 @@ if [ "$CMD" = "write" ]; then
     [ -n "${SSH_PUBLIC_KEY:-}" ]    && printf '%s' "${SSH_PUBLIC_KEY}"    > "${SECRET_DIR}/ssh_public_key"
     [ -n "${TAILSCALE_AUTH_KEY:-}" ] && printf '%s' "${TAILSCALE_AUTH_KEY}" > "${SECRET_DIR}/tailscale_authkey"
     [ -n "${HEADSCALE_AUTH_KEY:-}" ] && printf '%s' "${HEADSCALE_AUTH_KEY}" > "${SECRET_DIR}/headscale_authkey"
+    [ -n "${CLOUDFLARED_TOKEN:-}" ] && printf '%s' "${CLOUDFLARED_TOKEN}" > "${SECRET_DIR}/cloudflared_token"
 
     echo "密钥文件已写入 ${SECRET_DIR}"
     exit 0
@@ -83,9 +84,9 @@ else
 fi
 
 # ==========================================
-# Tailscale / Headscale 密钥注入
+# Tailscale / Headscale / Cloudflared 密钥注入
 # ==========================================
-echo "[2/2] Tailscale / Headscale 密钥注入..."
+echo "[2/3] Tailscale / Headscale / Cloudflared 密钥注入..."
 
 # 1) Tailscale: /etc/tailscale/config.json -> authKey=file:/etc/tailscale/authkey
 if [ -f "${SECRET_DIR}/tailscale_authkey" ]; then
@@ -110,6 +111,19 @@ if [ -f "${SECRET_DIR}/headscale_authkey" ]; then
     fi
 else
     echo "  → 未找到 ${SECRET_DIR}/headscale_authkey，跳过"
+fi
+
+# 3) Cloudflared: /etc/cloudflared/config.yml -> token: xxx
+if [ -f "${SECRET_DIR}/cloudflared_token" ]; then
+    mkdir -p /etc/cloudflared
+    CLOUDFLARED_TOKEN="$(cat "${SECRET_DIR}/cloudflared_token")"
+    cat > /etc/cloudflared/config.yml <<EOF
+token: ${CLOUDFLARED_TOKEN}
+EOF
+    chmod 600 /etc/cloudflared/config.yml
+    echo "  → Cloudflared token 已注入"
+else
+    echo "  → 未找到 ${SECRET_DIR}/cloudflared_token，跳过"
 fi
 
 

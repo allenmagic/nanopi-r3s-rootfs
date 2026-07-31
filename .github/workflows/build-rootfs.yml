@@ -68,6 +68,7 @@ jobs:
       SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
       TAILSCALE_AUTH_KEY: ${{ secrets.TAILSCALE_AUTH_KEY }}
       HEADSCALE_AUTH_KEY: ${{ secrets.HEADSCALE_AUTH_KEY }}
+      CLOUDFLARED_TOKEN: ${{ secrets.CLOUDFLARED_TOKEN }}
     steps:
       - uses: actions/checkout@v6
 
