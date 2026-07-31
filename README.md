@@ -93,14 +93,40 @@ sudo INFRA=sing-box ./distros/void/build.sh
 | `SSH_PUBLIC_KEY` | `/root/.ssh/id_ed25519.pub` |
 | `TAILSCALE_AUTH_KEY` | `/etc/tailscale/authkey` |
 | `HEADSCALE_AUTH_KEY` | `sing-box config.json` 中的 `__ROUTER_HEADSCALE_AUTH_KEY__` 占位符 |
+| `CLOUDFLARED_TOKEN` | `/etc/cloudflared/config.yml` 中的 `token` 字段 |
 
-本地构建示例：
+**方式一：命令行传递**
 
 ```bash
 sudo TAILSCALE_AUTH_KEY=tskey-auth-xxx PACK=1 ./distros/void/build.sh
 ```
 
-CI 构建时对应 GitHub Actions Secrets，由 workflow 自动注入。
+**方式二：使用 .env 文件（推荐）**
+
+```bash
+# 1. 复制模板文件
+cp .env.example .env
+
+# 2. 编辑 .env，填写实际配置
+vim .env
+
+# 3. 构建时自动加载
+sudo ./distros/void/build.sh
+```
+
+`.env` 文件示例：
+
+```bash
+INFRA=sing-box
+REPO=tuna
+ROOT_PASSWORD=mypassword
+SSH_PRIVATE_KEY="$(cat ~/.ssh/id_ed25519)"
+SSH_PUBLIC_KEY="$(cat ~/.ssh/id_ed25519.pub)"
+TAILSCALE_AUTH_KEY=tskey-auth-xxxxx
+CLOUDFLARED_TOKEN=xxxxx
+```
+
+> **注意**：`.env` 文件已被 `.gitignore` 忽略，不会提交到 Git。
 
 ## 项目结构
 
