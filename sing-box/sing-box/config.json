@@ -13,9 +13,17 @@
         "server_port": 53
       },
       {
-        "type": "tls",
+        "type": "udp",
+        "tag": "tencent",
+        "server": "119.29.29.29",
+        "server_port": 53
+      },
+      {
+        "type": "udp",
         "tag": "google",
-        "server": "8.8.8.8"
+        "server": "8.8.8.8",
+        "server_port": 53,
+        "detour": "ss-out"
       }
     ],
     "rules": [
@@ -23,18 +31,15 @@
         "rule_set": ["adblock-reject", "geosite-ads", "adblock-cnlite"],
         "action": "predefined",
         "rcode": "NXDOMAIN"
+      },
+      {
+        "rule_set": ["proxy-list"],
+        "server": "google"
       }
     ],
     "final": "local",
     "cache_capacity": 8192,
     "strategy": "ipv4_only"
-  },
-
-  "ntp": {
-    "enabled": true,
-    "server": "ntp5.aliyun.com",
-    "server_port": 123,
-    "interval": "30m"
   },
 
   "experimental": {
