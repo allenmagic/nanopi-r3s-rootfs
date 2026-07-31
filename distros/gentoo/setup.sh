@@ -291,40 +291,10 @@ if [ -f "${_PKG_LIST_}" ]; then
             '[dl@'*)
                 _line_="${_line_#\[dl@}"
                 _url_="${_line_%%\] *}"
-                _bins_="${_line_#*\] }"   # 空格分隔多二进制名
-                _first_bin_="${_bins_%% *}"
-                echo "[setup]   [dl@${_bins_}]"
-                mkdir -p "${TARGET_ROOTFS}/usr/local/bin"
-                _tmpdir_="/tmp/dl-$$-${_first_bin_}"
-                _asset_="$(basename "${_url_}")"
-                mkdir -p "${_tmpdir_}"
-
-                _retry_=3
-                while [ "${_retry_}" -gt 0 ]; do
-                    if curl -fsSL "${_url_}" -o "${_tmpdir_}/${_asset_}" 2>/dev/null; then
-                        break
-                    fi
-                    _retry_=$((_retry_ - 1))
-                    [ "${_retry_}" -gt 0 ] && sleep "$(( (3 - _retry_) * 2 ))"
-                done
-
-                if [ "${_retry_}" -gt 0 ]; then
-                    case "${_asset_}" in
-                        *.tar.gz|*.tgz)
-                            tar xzf "${_tmpdir_}/${_asset_}" -C "${_tmpdir_}"
-                            for _bin_ in ${_bins_}; do
-                                find "${_tmpdir_}" -type f -name "${_bin_}" \
-                                    -exec cp -f {} "${TARGET_ROOTFS}/usr/local/bin/" \; 2>/dev/null || true
-                                chmod +x "${TARGET_ROOTFS}/usr/local/bin/${_bin_}" 2>/dev/null || true
-                            done
-                            ;;
-                        *)
-                            cp -f "${_tmpdir_}/${_asset_}" "${TARGET_ROOTFS}/usr/local/bin/${_first_bin_}"
-                            chmod +x "${TARGET_ROOTFS}/usr/local/bin/${_first_bin_}"
-                            ;;
-                    esac
-                fi
-                rm -rf "${_tmpdir_}"
+                _bin_="${_line_#*\] }"
+                echo "[setup]   [dl@${_bin_}]"
+                # 复用共享下载助手，DESTDIR 指向目标 rootfs
+                DESTDIR="${TARGET_ROOTFS}/usr/local/bin" _dl_url "${_url_}" "${_bin_}"
                 ;;
         esac
     done < "${_PKG_LIST_}"
