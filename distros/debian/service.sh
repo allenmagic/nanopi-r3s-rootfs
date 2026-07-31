@@ -34,28 +34,50 @@ enable_router_services() {
 }
 
 # 通用服务启用
+# systemctl enable 在 chroot（mmdebstrap）内常因无法连接 bus 失败，
+# 失败时 fallback 手动创建 multi-user.target.wants 符号链接
 _enable_service() {
     _svc_="$1"
-    if command -v systemctl >/dev/null 2>&1; then
-        systemctl enable "${_svc_}" 2>/dev/null || true
-        echo "[service]   启用: ${_svc_}"
+    if command -v systemctl >/dev/null 2>&1 && systemctl enable "${_svc_}" 2>/dev/null; then
+        echo "[service]   启用: ${_svc_} (systemctl)"
+    else
+        _sysd_link "${_svc_}" "systemctl enable 失败（chroot 无 bus），手动链接"
     fi
 }
 
 # nftables 开机加载
 _enable_nftables() {
     echo "[service] 启用 nftables 开机加载 ..."
-    systemctl enable nftables 2>/dev/null || true
+    _enable_service nftables
 }
 
 # sing-box 服务启用
 _enable_singbox() {
     echo "[service] 启用 sing-box ..."
-    systemctl enable sing-box 2>/dev/null || true
+    _enable_service sing-box
 }
 
 # cloudflared 服务启用
 _enable_cloudflared() {
     echo "[service] 启用 cloudflared ..."
-    systemctl enable cloudflared 2>/dev/null || true
+    _enable_service cloudflared
+}
+
+# 手动创建 systemd wants 符号链接（chroot 内 systemctl enable 不可用时的 fallback）
+# 服务文件搜索顺序：/etc/systemd/system → /lib/systemd/system → /usr/lib/systemd/system
+_sysd_link() {
+    _svc_="$1"
+    _reason_="$2"
+    _wants_="/etc/systemd/system/multi-user.target.wants"
+    _unit_=""
+    for _d_ in /etc/systemd/system /lib/systemd/system /usr/lib/systemd/system; do
+        [ -f "${_d_}/${_svc_}.service" ] && { _unit_="${_d_}/${_svc_}.service"; break; }
+    done
+    if [ -n "${_unit_}" ]; then
+        mkdir -p "${_wants_}"
+        ln -sf "${_unit_}" "${_wants_}/${_svc_}.service"
+        echo "[service]   启用: ${_svc_} (手动链接, ${_reason_})"
+    else
+        echo "[service]   警告: ${_svc_}.service 单元文件不存在" >&2
+    fi
 }
