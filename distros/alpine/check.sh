@@ -22,8 +22,12 @@ check_rootfs() {
     _check_bin dnsmasq
     _check_bin nft
     _check_bin tailscaled
-    _check_bin sing-box
     _check_bin cloudflared
+
+    # sing-box 仅在 INFRA=sing-box 时检查
+    case ",${INFRA:-base}," in *",sing-box,"*)
+        _check_bin sing-box
+    ;; esac
 
     # ---------- 2. 配置文件占位符残留 ----------
     _check_no_placeholder() { _f_="$1"
@@ -58,8 +62,12 @@ check_rootfs() {
     _check_openrc nftables
     _check_openrc dnsmasq
     _check_openrc tailscale
-    _check_openrc sing-box
     _check_openrc cloudflared
+
+    # sing-box 仅在 INFRA=sing-box 时检查
+    case ",${INFRA:-base}," in *",sing-box,"*)
+        _check_openrc sing-box
+    ;; esac
 
     # ---------- 结果 ----------
     _TOTAL=$((_OK + _FAIL))

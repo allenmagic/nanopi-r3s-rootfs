@@ -24,8 +24,12 @@ check_rootfs() {
     _check_bin dnsmasq  /usr/sbin/dnsmasq /usr/bin/dnsmasq
     _check_bin nft      /usr/sbin/nft /sbin/nft
     _check_bin tailscaled /usr/local/bin/tailscaled
-    _check_bin sing-box /usr/local/bin/sing-box
     _check_bin cloudflared /usr/local/bin/cloudflared
+
+    # sing-box 仅在 INFRA=sing-box 时检查
+    case ",${INFRA:-base}," in *",sing-box,"*)
+        _check_bin sing-box /usr/local/bin/sing-box
+    ;; esac
 
     # ---------- 2. 配置文件占位符残留 ----------
     _check_no_placeholder() { _f_="$1"
@@ -65,8 +69,12 @@ check_rootfs() {
     _check_openrc nftables default
     _check_openrc dnsmasq default
     _check_openrc tailscale default
-    _check_openrc sing-box default
     _check_openrc cloudflared default
+
+    # sing-box 仅在 INFRA=sing-box 时检查
+    case ",${INFRA:-base}," in *",sing-box,"*)
+        _check_openrc sing-box default
+    ;; esac
 
     # ---------- 4. 额外检查：自定义 init 脚本完整性 ----------
     echo "[check] Gentoo 自定义 init 脚本:"
