@@ -7,11 +7,18 @@
 enable_router_services() {
     echo "[service] === 启用路由器服务 (INFRA=${INFRA:-base}) ==="
 
-    # --- base 服务 ---
+    # --- base 服务（按依赖顺序）---
+    # 1. 防火墙（最先加载）
+    _enable_nftables
+
+    # 2. 核心网络服务
+    _enable_service dnsmasq
+
+    # 3. 基础应用服务
     _enable_service sshd
     _enable_service chronyd
-    _enable_nftables
-    _enable_service dnsmasq
+
+    # 4. VPN 和隧道服务
     _enable_service tailscaled
     _enable_cloudflared
 

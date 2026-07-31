@@ -5,30 +5,33 @@
 #
 
 enable_router_services() {
-    echo "[service] === 启用路由器服务 (INFRA=${INFRA:-sing-box}) ==="
+    echo "[service] === 启用路由器服务 (INFRA=${INFRA:-base}) ==="
 
     # --- 系统基础服务 ---
     _enable_service bootmisc boot
     _enable_service syslogd
     _enable_service crond
 
-    # --- base 应用服务 ---
-    _enable_service sshd
-    _enable_service busybox-ntpd
+    # --- base 应用服务（按依赖顺序）---
+    # 1. 防火墙（最先加载）
     _enable_nftables
 
+    # 2. 核心网络服务
+    _enable_service dnsmasq
+
+    # 3. 基础应用服务
+    _enable_service sshd
+    _enable_service busybox-ntpd
+
+    # 4. VPN 和隧道服务
+    _enable_service tailscale
+    _enable_cloudflared
+
     # --- 根据 INFRA 启用组件服务 ---
-    case ",${INFRA:-sing-box}," in
+    case ",${INFRA:-base}," in
         *",sing-box,"*)
             echo "[service] --- sing-box 服务 ---"
-            _enable_service dnsmasq
-            _enable_service tailscale
             _enable_singbox
-            _enable_cloudflared
-            ;;
-        *",landscape,"*)
-            echo "[service] --- landscape 服务 ---"
-            # TODO: landscape services
             ;;
     esac
 
