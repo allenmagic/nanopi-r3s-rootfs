@@ -85,6 +85,10 @@ cp -a "${XBPS_DIR}/var/db/xbps/keys/." "${ROOTFS}/var/db/xbps/keys/" 2>/dev/null
 env XBPS_ARCH="${ARCH}" "${XBPS_INSTALL}" \
     --yes -S -r "${ROOTFS}" -R "${REPO}" base-minimal
 
+# 持久化镜像源到 rootfs
+mkdir -p "${ROOTFS}/etc/xbps.d"
+echo "repository=${REPO}" > "${ROOTFS}/etc/xbps.d/00-repository-main.conf"
+
 
 # ---------- 第三步前：跨架构能力预检 ----------
 HOST_ARCH="$(uname -m)"
