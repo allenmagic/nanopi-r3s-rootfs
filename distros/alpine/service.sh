@@ -18,13 +18,13 @@ enable_router_services() {
     _enable_nftables
     _enable_service dnsmasq
     _enable_service tailscale
+    _enable_cloudflared
 
     # --- 根据 INFRA 启用组件服务 ---
     case ",${INFRA:-base}," in
         *",sing-box,"*)
             echo "[service] --- sing-box 服务 ---"
             _enable_singbox
-            _enable_cloudflared
             ;;
     esac
 

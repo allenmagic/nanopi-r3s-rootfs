@@ -537,13 +537,13 @@ _enable_service_target busybox-ntpd default
 _enable_service_target nftables default
 _enable_service_target dnsmasq default
 _enable_service_target tailscale default
+_enable_service_target cloudflared default
 
 # 根据 INFRA 启用组件服务
 case ",${INFRA:-base}," in
     *",sing-box,"*)
         echo "[service] --- sing-box 服务 ---"
         _enable_service_target sing-box default
-        _enable_service_target cloudflared default
         ;;
 esac
 
