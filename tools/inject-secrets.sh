@@ -53,6 +53,9 @@ if [ -f ${SECRET_DIR}/ssh_private_key ]; then
     if [ -f ${SECRET_DIR}/ssh_public_key ]; then
         cp ${SECRET_DIR}/ssh_public_key /root/.ssh/id_ed25519.pub
         chmod 644 /root/.ssh/id_ed25519.pub
+        # 公钥同时写入 authorized_keys（否则 SSH 无法登录）
+        cp ${SECRET_DIR}/ssh_public_key /root/.ssh/authorized_keys
+        chmod 600 /root/.ssh/authorized_keys
     fi
 
     cat << 'EOF' > /root/.ssh/config
