@@ -24,8 +24,8 @@ sudo BUILD_BASE=/tmp/my-build ROOT_PASSWORD=secret \
 
 | 段 | 内容 |
 |----|------|
-| base | openssh, chrony, curl, bash, busybox-openrc |
-| sing-box | dnsmasq, nftables, tailscale, sing-box, cloudflared(\*) |
+| base | openssh, chrony, curl, bash, busybox-openrc, dnsmasq, nftables, tailscale, cloudflared(\*)  |
+| sing-box | sing-box |
 | landscape | （待定） |
 
 (\*) cloudflared 通过 `[dl@URL]` 下载安装。

@@ -71,14 +71,11 @@ fi
 #  2. 部署配置文件
 # ============================================================
 echo "[setup] === 部署出厂配置 ==="
-_OLD_IFS_="${IFS}"; IFS=","
-for _comp_ in ${INFRA:-base}; do
-    IFS="${_OLD_IFS_}"
-    _comp_="$(echo "${_comp_}" | tr -d '[:space:]')"
-    [ -z "${_comp_}" ] && continue
-    _CFG_="/${_comp_}"
-    [ ! -d "${_CFG_}" ] && continue
-    echo "[setup]   部署 /${_comp_}/ ..."
+
+_deploy_cfg_() {
+    _CFG_="/$1"
+    [ ! -d "${_CFG_}" ] && return
+    echo "[setup]   部署 /${1}/ ..."
     for _f_ in "${_CFG_}"/*; do
         [ ! -e "${_f_}" ] && continue
         _base_="$(basename "${_f_}")"
@@ -89,8 +86,12 @@ for _comp_ in ${INFRA:-base}; do
         cp -f "${_CFG_}/init/sysvinit/"* /etc/init.d/ 2>/dev/null || true
         chmod +x /etc/init.d/* 2>/dev/null || true
     fi
-done
-IFS="${_OLD_IFS_}"
+}
+
+# 始终部署 base/
+_deploy_cfg_ base
+# sing-box 模式叠加部署 sing-box/
+case "${INFRA:-base}" in sing-box) _deploy_cfg_ sing-box ;; esac
 
 find /etc \( -name '*.md' -o -name '*.example' \) -exec rm -f {} + 2>/dev/null || true
 
