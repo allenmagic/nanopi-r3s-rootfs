@@ -4,10 +4,10 @@
 
 ## 特性
 
-- **多发行版支持**：Void Linux / Devuan / Debian / Alpine Linux
+- **多发行版支持**：Void Linux / Devuan / Debian / Alpine Linux / Gentoo
 - **跨架构构建**：x86_64 主机可通过 qemu-user-static 构建 aarch64 rootfs
 - **最小化打包**：自动精简 rootfs，xz 极限压缩
-- **统一配置部署**：`sing-box/` 和 `landscape/` 下的配置文件自动复制到 `/etc/`
+- **分层配置部署**：`base/` 通用配置始终部署，`sing-box/` 专属配置按需叠加
 - **包管理分离**：三段式 `package.list`（base / sing-box / landscape），`[pm]` 走包管理器、`[dl@URL]` 走下载
 - **CI 就绪**：GitHub Actions 自动构建并发布 Release
 
@@ -46,6 +46,7 @@ sudo REPO=mirror-alias ROOT_PASSWORD=secret \
 | **Devuan** | glibc | sysvinit | ✅ 成熟 | [查看](distros/devuan/README.md) |
 | **Debian** | glibc | systemd | ✅ 成熟 | [查看](distros/debian/README.md) |
 | **Alpine Linux** | musl | OpenRC | ✅ 成熟 | [查看](distros/alpine/README.md) |
+| **Gentoo** | glibc | OpenRC | ✅ 成熟 | [查看](distros/gentoo/README.md) |
 
 构建产物命名规则：`{distro}-{infra}-aarch64-rootfs.tar.xz`，如 `void-sing-box-aarch64-rootfs.tar.xz`。
 
@@ -54,17 +55,17 @@ sudo REPO=mirror-alias ROOT_PASSWORD=secret \
 `INFRA` 环境变量控制部署的路由系统组件：
 
 ```bash
-# 默认安装 sing-box 栈
+# 默认构建 base 栈（dnsmasq DNS + DHCP，无代理）
 sudo ./distros/void/build.sh
 
-# 明确指定（等 landscape 就绪后）
-sudo INFRA=landscape ./distros/void/build.sh
+# 构建 sing-box 栈（DNS 由 sing-box 接管）
+sudo INFRA=sing-box ./distros/void/build.sh
 ```
 
-| INFRA 值 | 包含 |
-|----------|------|
-| `sing-box` | dnsmasq + nftables + tailscale + sing-box + cloudflared |
-| `landscape` | （待定） |
+| INFRA 值 | DNS | 包含服务 |
+|----------|-----|---------|
+| `base` | dnsmasq（阿里云 + 腾讯上游） | ssh / chrony / nftables / dnsmasq / tailscale / cloudflared |
+| `sing-box` | sing-box DNS server | 同上 + sing-box（dnsmasq 关闭 DNS，仅保留 DHCP） |
 
 ## 构建环境变量
 
@@ -77,7 +78,7 @@ sudo INFRA=landscape ./distros/void/build.sh
 | `ROOTFS` | `build/<distro>/<distro>-rootfs` | rootfs 具体路径 |
 | `CACHE_DIR` | `build/<distro>/cache` | 下载缓存目录 |
 | `ARCH` | `aarch64` | 目标架构 |
-| `INFRA` | `sing-box` | 路由组件选择，参见上节 |
+| `INFRA` | `base` | 路由组件选择，参见上节 |
 | `PACK` | `0` | `1` 时构建后打包 `.tar.xz` |
 | `ROOT_PASSWORD` | `root` | root 用户密码 |
 | `HOSTNAME_VAL` | `nanopi-r3s-<distro>` | 主机名 |
@@ -113,18 +114,22 @@ CI 构建时对应 GitHub Actions Secrets，由 workflow 自动注入。
 │   ├── download-helpers.sh #  下载函数（_dl_url, _gh_latest_tag）
 │   ├── chroot-helper.sh    #  通用 chroot 挂载/卸载/执行
 │   └── slim-rootfs.sh      #  rootfs 精简与打包
-├── common/                 # 通用路由器配置（网络、防火墙、系统调优等）
-│   ├── dnsmasq.conf        #  映射到 /etc/ 的共用配置
-│   ├── nftables.nft
+├── base/                   # 通用路由器配置（始终部署）
+│   ├── dnsmasq.conf        #  dnsmasq 主配置（开启 DNS + DHCP）
+│   ├── dnsmasq.d/          #  DHCP 和上游 DNS 配置
+│   ├── nftables.nft        #  防火墙规则
+│   ├── nftables.d/
+│   ├── sysctl.d/           #  内核参数调优
+│   ├── local.d/            #  启动脚本
 │   └── init/               #  各 init 类型服务文件
-│       ├── runit/
 │       ├── openrc/
+│       ├── runit/
 │       ├── sysvinit/
 │       └── systemd/
-├── sing-box/               # sing-box 路由配置
-│   ├── sing-box/           #  sing-box 专属配置和规则
-│   └── (共用配置继承自 common/)
-├── landscape/              # landscape 路由配置（待实现）
+├── sing-box/               # sing-box 专属配置（叠加部署）
+│   ├── sing-box/           #  sing-box 程序配置和规则
+│   └── dnsmasq.d/
+│       └── 99-disable-dns-server.conf  # 关闭 dnsmasq DNS（由 sing-box 接管）
 └── tools/                  # 工具脚本
     ├── chroot-in.sh        #  交互式 chroot 进入
     ├── chroot-exit.sh      #  chroot 挂载清理
