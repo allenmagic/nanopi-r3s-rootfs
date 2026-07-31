@@ -169,10 +169,20 @@ fi
 echo "[setup] 初始化 Portage GPG 环境（stage3 内）..."
 mkdir -p /etc/portage/gnupg
 
+# Portage 默认启用 FEATURES=userpriv，binpkg 验证时 GPG 以 portage 用户身份运行
+# 如果 keyring 属于 root，会导致 "unsafe ownership" 和 "Permission denied"
+if id portage >/dev/null 2>&1; then
+    chown -R portage:portage /etc/portage/gnupg
+fi
+
 # 尝试运行 getuto 初始化信任链（需要 sec-keys/openpgp-keys-gentoo-release）
+# getuto 以 root 运行，完成后需再次确保 portage 用户可读写
 if [ -x /usr/bin/getuto ]; then
     echo "[setup]   运行 getuto 初始化 GPG 信任链..."
     getuto 2>/dev/null || echo "[setup]   提示: getuto 失败，继续（已设置 -binpkg-verify-signature）" >&2
+    if id portage >/dev/null 2>&1; then
+        chown -R portage:portage /etc/portage/gnupg
+    fi
 else
     echo "[setup]   提示: getuto 不可用，已创建 /etc/portage/gnupg/ 目录" >&2
 fi
