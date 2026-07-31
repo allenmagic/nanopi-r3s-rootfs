@@ -28,7 +28,7 @@
 [dl@https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64] cloudflared
 
 # ========== sing-box ==========
-[dl@https://github.com/sagernet/sing-box/releases/download/v1.13.11/sing-box-1.13.11-linux-arm64.tar.gz] sing-box
+[dl@https://github.com/sagernet/sing-box/releases/download/v1.13.15/sing-box-1.13.15-linux-arm64.tar.gz] sing-box
 
 
 # ========== landscape ==========
