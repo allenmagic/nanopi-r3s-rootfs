@@ -162,6 +162,21 @@ if [ ! -d "/var/db/repos/gentoo" ] || [ -z "$(ls -A /var/db/repos/gentoo 2>/dev/
         GENTOO_MIRRORS="https://distfiles.gentoo.org" emerge --sync
 fi
 
+# ---------- 初始化 Portage GPG 环境（stage3 内）----------
+# stage3 默认不含 /etc/portage/gnupg/，导致 binpkg 签名验证失败
+# 即使 make.conf 设置了 -binpkg-verify-signature，Portage 仍可能尝试验证
+# 这会导致所有二进制包被拒绝，94 个包全部从源码编译，CI 超时
+echo "[setup] 初始化 Portage GPG 环境（stage3 内）..."
+mkdir -p /etc/portage/gnupg
+
+# 尝试运行 getuto 初始化信任链（需要 sec-keys/openpgp-keys-gentoo-release）
+if [ -x /usr/bin/getuto ]; then
+    echo "[setup]   运行 getuto 初始化 GPG 信任链..."
+    getuto 2>/dev/null || echo "[setup]   提示: getuto 失败，继续（已设置 -binpkg-verify-signature）" >&2
+else
+    echo "[setup]   提示: getuto 不可用，已创建 /etc/portage/gnupg/ 目录" >&2
+fi
+
 # 手动部署 Gentoo release GPG 密钥到 TARGET_ROOTFS
 # 优先从 stage3 复制，避免硬编码日期 URL 过期
 echo "[setup] 手动部署 Gentoo release GPG 密钥到目标 rootfs ..."
