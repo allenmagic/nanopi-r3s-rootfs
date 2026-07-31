@@ -8,6 +8,15 @@ set -euo pipefail
 
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"     # → distros/devuan
 REPO_ROOT="$(readlink -f "${SCRIPT_DIR}/../..")"  # → 仓库根
+
+# ---------- 加载 .env（如果存在）----------
+if [ -f "${REPO_ROOT}/.env" ]; then
+    echo "[devuan] 加载 ${REPO_ROOT}/.env ..."
+    set -a  # 自动 export 所有变量
+    source "${REPO_ROOT}/.env"
+    set +a
+fi
+
 source "${REPO_ROOT}/lib/chroot-helper.sh"
 
 # ---------- 可配置参数 ----------
