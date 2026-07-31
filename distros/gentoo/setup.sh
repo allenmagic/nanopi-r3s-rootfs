@@ -98,7 +98,9 @@ fi
 
 cat > /etc/portage/make.conf <<EOF
 # Gentoo 镜像源（distfiles 下载）
-GENTOO_MIRRORS="${GENTOO_MIRROR_BASE}/distfiles"
+# 注意：不要追加 /distfiles，ebuild SRC_URI 中 mirror://gentoo/ 已自动拼接该路径
+# 加上会导致 distfiles/distfiles 重复路径，部分包（如 netifrc）下载失败
+GENTOO_MIRRORS="${GENTOO_MIRROR_BASE}"
 
 # 编译选项（原生 ARM64: 多核 / QEMU: 单核避免 PTY/CLONE_THREAD 问题）
 MAKEOPTS="${_MAKEOPTS_}"
