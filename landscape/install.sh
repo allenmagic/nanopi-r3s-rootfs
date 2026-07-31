@@ -1,5 +1,5 @@
 #
-# infra/landscape/install.sh —— Landscape 体系安装（占位）
+# landscape/install.sh —— Landscape 体系安装（占位）
 #   被 lib/install-router-software.sh source 调用
 #   定义 install_landscape() 函数
 #

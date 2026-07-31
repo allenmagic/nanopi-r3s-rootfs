@@ -27,10 +27,10 @@ Landscape Router 默认配置目录为 `/root/.landscape-router/`，但自动化
 
 ### 3. 各 OS 的 init 脚本
 
-根据发行版使用不同的初始化脚本，统一放在 `infra/landscape/config/init/` 下：
+根据发行版使用不同的初始化脚本，统一放在 `landscape/init/` 下：
 
 ```
-infra/landscape/config/init/
+landscape/init/
 ├── openrc/landscape-router    # Gentoo / Alpine
 ├── runit/landscape-router/run # Void Linux
 ├── systemd/                   # Debian
@@ -126,8 +126,8 @@ database = "/var/lib/landscape-router/db.sqlite"
 1. 确认 `landscape-webserver --help` 是否支持 `--home-path` / `--config` 参数自定义路径
 2. 创建 4 种 init 脚本（openrc/runit/systemd/sysvinit）
 3. 编写 `landscape_init.toml` 模板
-4. 填写 `infra/landscape/install.sh`：下载二进制 + 静态文件 + 部署目录
-5. 填写 `infra/landscape/service.sh`：按 init 类型启用服务
+4. 填写 `landscape/install.sh`：下载二进制 + 静态文件 + 部署目录
+5. 填写 `landscape/service.sh`：按 init 类型启用服务
 6. 填写各发行版 `service.sh` 的 landscape 分支
 7. 在各 `package.list` 的 landscape 段添加 `[dl@]` 下载项
-8. 在各 `setup.sh` 中处理 landscape 段配置部署（与 sing-box 相同逻辑，走 `infra/landscape/config/`）
+8. 在各 `setup.sh` 中处理 landscape 段配置部署（与 sing-box 相同逻辑，走 `landscape/`）

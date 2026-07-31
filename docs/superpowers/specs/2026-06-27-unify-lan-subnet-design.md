@@ -2,7 +2,7 @@
 
 ## 背景
 
-`infra/sing-box/config/` 下的出厂默认配置存在子网不一致问题：
+`sing-box/` 下的出厂默认配置存在子网不一致问题：
 
 | 文件 | 网段 | 问题 |
 |------|------|------|
@@ -96,7 +96,7 @@ log-dhcp
 若需回滚，恢复三个文件的 git 原始版本即可：
 
 ```bash
-git checkout -- infra/sing-box/config/dnsmasq.conf
-git checkout -- infra/sing-box/config/dnsmasq.d/00-base.conf
-rm infra/sing-box/config/dnsmasq.d/10-dhcp-eth1.conf
+git checkout -- sing-box/dnsmasq.conf
+git checkout -- sing-box/dnsmasq.d/00-base.conf
+rm sing-box/dnsmasq.d/10-dhcp-eth1.conf
 ```

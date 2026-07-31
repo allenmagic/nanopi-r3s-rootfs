@@ -74,9 +74,9 @@ for _comp_ in ${INFRA:-sing-box}; do
     IFS="${_OLD_IFS_}"
     _comp_="$(echo "${_comp_}" | tr -d '[:space:]')"
     [ -z "${_comp_}" ] && continue
-    _CFG_="/infra/${_comp_}/config"
+    _CFG_="/${_comp_}"
     [ ! -d "${_CFG_}" ] && continue
-    echo "[setup]   部署 /infra/${_comp_}/config/ ..."
+    echo "[setup]   部署 /${_comp_}/ ..."
     for _f_ in "${_CFG_}"/*; do
         [ ! -e "${_f_}" ] && continue
         _base_="$(basename "${_f_}")"

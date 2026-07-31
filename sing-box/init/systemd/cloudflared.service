@@ -1,0 +1,12 @@
+[Unit]
+Description=cloudflared tunnel
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/cloudflared --no-autoupdate
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

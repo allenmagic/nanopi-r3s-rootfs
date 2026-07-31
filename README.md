@@ -7,7 +7,7 @@
 - **多发行版支持**：Void Linux / Devuan / Debian / Alpine Linux
 - **跨架构构建**：x86_64 主机可通过 qemu-user-static 构建 aarch64 rootfs
 - **最小化打包**：自动精简 rootfs，xz 极限压缩
-- **统一配置部署**：`infra/sing-box/config/` 下的配置文件自动复制到 `/etc/`
+- **统一配置部署**：`sing-box/` 和 `landscape/` 下的配置文件自动复制到 `/etc/`
 - **包管理分离**：三段式 `package.list`（base / sing-box / landscape），`[pm]` 走包管理器、`[dl@URL]` 走下载
 - **CI 就绪**：GitHub Actions 自动构建并发布 Release
 
@@ -113,7 +113,7 @@ CI 构建时对应 GitHub Actions Secrets，由 workflow 自动注入。
 │   ├── download-helpers.sh #  下载函数（_dl_url, _gh_latest_tag）
 │   ├── chroot-helper.sh    #  通用 chroot 挂载/卸载/执行
 │   └── slim-rootfs.sh      #  rootfs 精简与打包
-├── infra/sing-box/config/  # 出厂默认配置文件
+├── common/                 # 通用路由器配置（网络、防火墙、系统调优等）
 │   ├── dnsmasq.conf        #  映射到 /etc/ 的共用配置
 │   ├── nftables.nft
 │   └── init/               #  各 init 类型服务文件
@@ -121,6 +121,10 @@ CI 构建时对应 GitHub Actions Secrets，由 workflow 自动注入。
 │       ├── openrc/
 │       ├── sysvinit/
 │       └── systemd/
+├── sing-box/               # sing-box 路由配置
+│   ├── sing-box/           #  sing-box 专属配置和规则
+│   └── (共用配置继承自 common/)
+├── landscape/              # landscape 路由配置（待实现）
 └── tools/                  # 工具脚本
     ├── chroot-in.sh        #  交互式 chroot 进入
     ├── chroot-exit.sh      #  chroot 挂载清理

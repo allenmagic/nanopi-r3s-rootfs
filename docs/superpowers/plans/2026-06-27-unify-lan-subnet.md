@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 将 `infra/sing-box/config/` 下 dnsmasq 配置统一到 `192.168.8.0/24` 网段，并按职责分拆文件。
+**Goal:** 将 `sing-box/` 下 dnsmasq 配置统一到 `192.168.8.0/24` 网段，并按职责分拆文件。
 
 **Architecture:** 三文件分拆——`dnsmasq.conf` 只做监听绑定和 conf-dir 引入；`00-base.conf` 只放全局 DHCP 选项；新增 `10-dhcp-eth1.conf` 放 eth1 接口的地址池和 DHCP 选项。所有 `192.168.1.x` 和 `192.168.10.x` 改为 `192.168.8.x`。
 
@@ -19,7 +19,7 @@
 ### Task 1: 精简 dnsmasq.conf
 
 **Files:**
-- Modify: `infra/sing-box/config/dnsmasq.conf`
+- Modify: `sing-box/dnsmasq.conf`
 
 **Interfaces:**
 - Produces: `dnsmasq.conf` 只包含监听绑定和 conf-dir，通过 `conf-dir` 引入分拆后文件
@@ -52,14 +52,14 @@ conf-dir=/etc/dnsmasq.d/,*.conf
 
 - [ ] **Step 2: 验证文件内容正确**
 
-Run: `head -20 infra/sing-box/config/dnsmasq.conf`
+Run: `head -20 sing-box/dnsmasq.conf`
 
 Expected: 只包含 port=0、interface=eth1、bind-dynamic、conf-dir，无 DHCP 池
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add infra/sing-box/config/dnsmasq.conf
+git add sing-box/dnsmasq.conf
 git commit -m "refactor(dnsmasq): 精简 dnsmasq.conf，只保留监听绑定和 conf-dir"
 ```
 
@@ -68,7 +68,7 @@ git commit -m "refactor(dnsmasq): 精简 dnsmasq.conf，只保留监听绑定和
 ### Task 2: 精简 00-base.conf 为全局选项
 
 **Files:**
-- Modify: `infra/sing-box/config/dnsmasq.d/00-base.conf`
+- Modify: `sing-box/dnsmasq.d/00-base.conf`
 
 **Interfaces:**
 - Produces: `00-base.conf` 只保留 `dhcp-authoritative` 和 `dhcp-leasefile`
@@ -88,14 +88,14 @@ dhcp-leasefile=/var/lib/misc/dnsmasq.leases
 
 - [ ] **Step 2: 验证文件内容正确**
 
-Run: `cat infra/sing-box/config/dnsmasq.d/00-base.conf`
+Run: `cat sing-box/dnsmasq.d/00-base.conf`
 
 Expected: 只有 dhcp-authoritative 和 dhcp-leasefile
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add infra/sing-box/config/dnsmasq.d/00-base.conf
+git add sing-box/dnsmasq.d/00-base.conf
 git commit -m "refactor(dnsmasq): 精简 00-base.conf 为全局 DHCP 选项"
 ```
 
@@ -104,7 +104,7 @@ git commit -m "refactor(dnsmasq): 精简 00-base.conf 为全局 DHCP 选项"
 ### Task 3: 新增 10-dhcp-eth1.conf
 
 **Files:**
-- Create: `infra/sing-box/config/dnsmasq.d/10-dhcp-eth1.conf`
+- Create: `sing-box/dnsmasq.d/10-dhcp-eth1.conf`
 
 **Interfaces:**
 - Produces: eth1 接口的 DHCP 地址池和选项，网段 `192.168.8.0/24`
@@ -137,13 +137,13 @@ log-dhcp
 
 - [ ] **Step 2: 验证文件创建成功**
 
-Run: `cat infra/sing-box/config/dnsmasq.d/10-dhcp-eth1.conf`
+Run: `cat sing-box/dnsmasq.d/10-dhcp-eth1.conf`
 
 Expected: 文件内容正确包含 192.168.8.x 地址池
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add infra/sing-box/config/dnsmasq.d/10-dhcp-eth1.conf
+git add sing-box/dnsmasq.d/10-dhcp-eth1.conf
 git commit -m "feat(dnsmasq): 新增 10-dhcp-eth1.conf，统一 DHCP 池为 192.168.8.0/24"
 ```

@@ -23,7 +23,7 @@ nanopi-r3s-rootfs/
 │   ├── setup.sh                         # [修改] 部署阶段调用 configure_network()
 │   ├── service.sh                       # 不变
 │   └── package.list                     # 不变
-└── infra/sing-box/config/
+└── sing-box/
     ├── dnsmasq.d/
     │   └── 10-dhcp-eth1.conf            # [修改] 硬编码值 → __PLACEHOLDER__
     ├── nftables.d/
@@ -210,7 +210,7 @@ _replace_placeholders() {
 
 ### 4.1 dnsmasq DHCP 配置（占位符化）
 
-**文件**：`infra/sing-box/config/dnsmasq.d/10-dhcp-eth1.conf`
+**文件**：`sing-box/dnsmasq.d/10-dhcp-eth1.conf`
 
 ```diff
 - dhcp-range=eth1,192.168.8.100,192.168.8.200,255.255.255.0,12h
@@ -231,7 +231,7 @@ _replace_placeholders() {
 
 ### 4.2 nftables 变量（占位符化）
 
-**文件**：`infra/sing-box/config/nftables.d/00-inet-vars.nft`
+**文件**：`sing-box/nftables.d/00-inet-vars.nft`
 
 ```diff
 - define ROUTER_LAN_IP = 192.168.8.1
@@ -274,7 +274,7 @@ _replace_placeholders() {
 
 | 文件 | 原因 |
 |------|------|
-| `infra/sing-box/config/network/interfaces` | 由各 distro 的 `network.sh` 动态生成 |
+| `sing-box/network/interfaces` | 由各 distro 的 `network.sh` 动态生成 |
 
 ---
 

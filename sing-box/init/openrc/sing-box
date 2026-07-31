@@ -1,0 +1,18 @@
+#!/sbin/openrc-run
+
+name="sing-box"
+description="sing-box service"
+command="/usr/bin/sing-box"
+command_args="run -c /etc/sing-box/config.json"
+command_user="root:root"
+command_background=true
+pidfile="/var/run/sing-box.pid"
+
+depend() {
+    need net
+    after firewall
+}
+
+start_pre() {
+    ${command} check -c /etc/sing-box/config.json || return 1
+}
