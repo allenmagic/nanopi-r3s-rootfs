@@ -5,7 +5,7 @@
 #
 
 enable_router_services() {
-    echo "[service] === 启用路由器服务 (INFRA=${INFRA:-sing-box}) ==="
+    echo "[service] === 启用路由器服务 (INFRA=${INFRA:-base}) ==="
 
     # --- 系统基础服务 ---
     _enable_service bootmisc boot
@@ -16,19 +16,15 @@ enable_router_services() {
     _enable_service sshd
     _enable_service chronyd
     _enable_nftables
+    _enable_service dnsmasq
+    _enable_service tailscale
 
     # --- 根据 INFRA 启用组件服务 ---
-    case ",${INFRA:-sing-box}," in
+    case ",${INFRA:-base}," in
         *",sing-box,"*)
             echo "[service] --- sing-box 服务 ---"
-            _enable_service dnsmasq
-            _enable_service tailscale
             _enable_singbox
             _enable_cloudflared
-            ;;
-        *",landscape,"*)
-            echo "[service] --- landscape 服务 ---"
-            # TODO: landscape services
             ;;
     esac
 

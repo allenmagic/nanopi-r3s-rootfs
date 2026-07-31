@@ -525,23 +525,25 @@ _enable_service_target bootmisc boot
 _enable_service_target syslog default
 _enable_service_target crond default
 
+# 网络服务
+. /network.env 2>/dev/null || true
+_enable_service_target net.lo boot
+_enable_service_target "net.${WAN_IFACE:-eth0}" default
+_enable_service_target "net.${LAN_IFACE:-eth1}" default
+
 # base 应用服务
 _enable_service_target sshd default
 _enable_service_target busybox-ntpd default
 _enable_service_target nftables default
+_enable_service_target dnsmasq default
+_enable_service_target tailscale default
 
 # 根据 INFRA 启用组件服务
 case ",${INFRA:-base}," in
     *",sing-box,"*)
         echo "[service] --- sing-box 服务 ---"
-        _enable_service_target dnsmasq default
-        _enable_service_target tailscale default
         _enable_service_target sing-box default
         _enable_service_target cloudflared default
-        ;;
-    *",landscape,"*)
-        echo "[service] --- landscape 服务 ---"
-        # TODO: landscape services
         ;;
 esac
 
