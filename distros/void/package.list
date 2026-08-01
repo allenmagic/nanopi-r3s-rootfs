@@ -23,6 +23,7 @@
 [pm] tailscale
 [pm] iproute2
 [pm] cloudflared
+[pm] fastfetch
 
 # ========== sing-box ==========
 [pm] sing-box
