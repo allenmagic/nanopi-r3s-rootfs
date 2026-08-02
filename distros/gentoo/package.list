@@ -21,7 +21,7 @@
 [pm] sys-apps/util-linux
 [pm] sys-libs/timezone-data
 [pm] sys-apps/openrc
-[pm] sys-apps/procps
+[pm] sys-process/procps
 [pm] app-misc/fastfetch
 [pm] net-dns/dnsmasq
 [pm] net-firewall/nftables
