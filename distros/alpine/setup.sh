@@ -127,10 +127,12 @@ if ! grep -q "127.0.1.1[[:space:]]*${HOSTNAME_VAL}" /etc/hosts 2>/dev/null; then
     printf '127.0.1.1\t%s\n' "${HOSTNAME_VAL}" >> /etc/hosts
 fi
 
-# 确保串口控制台
+# 确保串口控制台 + 禁用虚拟控制台（无 VT 内核）
 if ! grep -q "${SERIAL_DEV}" /etc/inittab 2>/dev/null; then
     echo "${SERIAL_DEV}::respawn:/sbin/agetty -L ${SERIAL_BAUD} ${SERIAL_DEV} vt100" >> /etc/inittab
 fi
+# 注释掉 tty1-tty6（Alpine busybox init 用设备名作 id）
+sed -i 's/^tty[1-6]:/#&/' /etc/inittab 2>/dev/null || true
 
 echo "[setup] 启用基础服务 ..."
 rc-update add sysctl boot 2>/dev/null || true

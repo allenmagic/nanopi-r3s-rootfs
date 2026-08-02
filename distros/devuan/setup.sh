@@ -135,6 +135,8 @@ touch /etc/inittab
 sed -i "\#:/sbin/getty -L ${SERIAL_DEV} #d" /etc/inittab
 sed -i "/^${GETTY_ID}:/d" /etc/inittab
 echo "${INITTAB_LINE}" >> /etc/inittab
+# 注释掉虚拟控制台 getty（1-6，无 VT 内核不需要）
+sed -i '/^[1-6]:.*\/sbin\/getty/s/^/#/' /etc/inittab 2>/dev/null || true
 
 # ============================================================
 #  4. 启用路由器服务

@@ -359,7 +359,7 @@ description="Busybox syslog daemon"
 start() {
     ebegin "Starting syslogd"
     start-stop-daemon --start --quiet \
-        --exec /bin/busybox -- syslogd -C /dev/ttyS2
+        --exec /bin/busybox -- syslogd -L -s 200 -b 2
     eend $?
 }
 
@@ -476,29 +476,17 @@ else
     fi
 fi
 
-# 确保串口控制台（OpenRC inittab）
-if [ ! -f "${TARGET_ROOTFS}/etc/inittab" ]; then
-    cat > "${TARGET_ROOTFS}/etc/inittab" <<EOF
-# Default runlevel
+# 确保串口控制台 — 直接覆盖（不用 stage3 自带的 inittab）
+# id 字段必须 ≤4 字符，sysvinit 限制；S2 = serial-2（ttyS2）
+cat > "${TARGET_ROOTFS}/etc/inittab" <<EOF
 id:3:initdefault:
-
-# System initialization
 si::sysinit:/sbin/openrc sysinit
 si::sysinit:/sbin/openrc boot
 si::wait:/sbin/openrc default
-
-# Termination
 l0:0:wait:/sbin/openrc shutdown
 l6:6:wait:/sbin/openrc reboot
-
-# Serial console
-${SERIAL_DEV}::respawn:/sbin/agetty ${SERIAL_BAUD} ${SERIAL_DEV} vt100
+S2::respawn:/sbin/agetty ${SERIAL_BAUD} ${SERIAL_DEV} vt100
 EOF
-else
-    if ! grep -q "${SERIAL_DEV}" "${TARGET_ROOTFS}/etc/inittab" 2>/dev/null; then
-        echo "${SERIAL_DEV}::respawn:/sbin/agetty ${SERIAL_BAUD} ${SERIAL_DEV} vt100" >> "${TARGET_ROOTFS}/etc/inittab"
-    fi
-fi
 
 echo "[setup] 启用基础服务 ..."
 # OpenRC 服务启用需要在目标 rootfs 的 /etc/runlevels/ 下操作
@@ -525,11 +513,20 @@ _enable_service_target bootmisc boot
 _enable_service_target syslog default
 _enable_service_target crond default
 
+# 移除 headless 路由器不需要的键盘服务（依赖未安装的 kbd 包）
+rm -f "${TARGET_ROOTFS}/etc/runlevels/boot/keymaps" \
+      "${TARGET_ROOTFS}/etc/runlevels/boot/save-keymaps" \
+      "${TARGET_ROOTFS}/etc/runlevels/default/keymaps" \
+      "${TARGET_ROOTFS}/etc/runlevels/default/save-keymaps" 2>/dev/null || true
+
 # 网络服务
 . /network.env 2>/dev/null || true
 _enable_service_target net.lo boot
 _enable_service_target "net.${WAN_IFACE:-eth0}" default
-_enable_service_target "net.${LAN_IFACE:-eth1}" default
+# LAN 接口：仅在设置且不同于 WAN 时才启用独立服务
+if [ -n "${LAN_IFACE:-}" ] && [ "${LAN_IFACE}" != "${WAN_IFACE:-eth0}" ]; then
+    _enable_service_target "net.${LAN_IFACE}" default
+fi
 
 # base 应用服务
 _enable_service_target sshd default
