@@ -210,7 +210,7 @@ rm -f "${STAGE3_DIR}/network.sh"
 rm -f "${STAGE3_DIR}/check.sh"
 rm -f "${STAGE3_DIR}/network.env"
 
-rm -rf "${STAGE3_DIR}/base" "${STAGE3_DIR}/sing-box"
+rm -rf "${STAGE3_DIR}/base" "${STAGE3_DIR}/sing-box" "${STAGE3_DIR}/scripts"
 
 echo "[gentoo] base rootfs 构建完成：${ROOTFS}"
 

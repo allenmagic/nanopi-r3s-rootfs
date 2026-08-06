@@ -153,7 +153,7 @@ rm -f "${ROOTFS}/service.sh"
 rm -f "${ROOTFS}/network.sh"
 rm -f "${ROOTFS}/check.sh"
 rm -f "${ROOTFS}/network.env"
-rm -rf "${ROOTFS}/base" "${ROOTFS}/sing-box"
+rm -rf "${ROOTFS}/base" "${ROOTFS}/sing-box" "${ROOTFS}/scripts"
 
 echo "[void] base rootfs 构建完成：${ROOTFS}"
 
