@@ -95,6 +95,13 @@ case "${INFRA:-base}" in sing-box) _deploy_cfg_ sing-box ;; esac
 
 find /etc \( -name '*.md' -o -name '*.example' \) -exec rm -f {} + 2>/dev/null || true
 
+# 安装运行时脚本到 /usr/local/bin/
+echo "[setup] === 安装运行时脚本 ==="
+if [ -f /scripts/network-watchdog.sh ]; then
+    install -m 0755 /scripts/network-watchdog.sh /usr/local/bin/network-watchdog.sh
+    echo "[setup]   已安装: network-watchdog.sh"
+fi
+
 if [ ! -e /usr/local/bin/sing-box ] && [ -x /usr/bin/sing-box ]; then
     ln -s /usr/bin/sing-box /usr/local/bin/sing-box
 fi

@@ -50,6 +50,20 @@ sudo REPO=mirror-alias ROOT_PASSWORD=secret \
 
 构建产物命名规则：`{distro}-{infra}-aarch64-rootfs.tar.xz`，如 `void-sing-box-aarch64-rootfs.tar.xz`。
 
+### 各发行版网络配置
+
+| 发行版 | 网络管理 | DHCP 客户端（WAN 获取 IP） | DHCP 服务器（LAN 分配 IP） |
+|--------|---------|---------------------------|--------------------------|
+| **Alpine** | ifupdown | ifupdown 内置（dhclient/udhcpc） | dnsmasq |
+| **Debian** | ifupdown | ifupdown 内置（dhclient） | dnsmasq |
+| **Devuan** | ifupdown | ifupdown 内置（dhclient） | dnsmasq |
+| **Void** | dhcpcd | dhcpcd（全局服务） | dnsmasq |
+| **Gentoo** | netifrc | netifrc 内置（dhcpcd） | dnsmasq |
+
+**说明**：
+- **WAN 口**：使用 DHCP 客户端从上游路由器获取 IP 地址
+- **LAN 口**：统一使用 dnsmasq 作为 DHCP 服务器，为下游设备分配 IP
+
 ## INFRA 选择
 
 `INFRA` 环境变量控制部署的路由系统组件：

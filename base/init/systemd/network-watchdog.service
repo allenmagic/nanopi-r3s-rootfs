@@ -1,0 +1,14 @@
+[Unit]
+Description=Network watchdog - monitors WAN/LAN connectivity
+After=network.target nftables.service dnsmasq.service
+
+[Service]
+Type=forking
+ExecStart=/usr/local/bin/network-watchdog.sh daemon-start
+ExecStop=/usr/local/bin/network-watchdog.sh daemon-stop
+PIDFile=/var/run/network-watchdog.pid
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

@@ -429,6 +429,13 @@ find "${TARGET_ROOTFS}/etc" \( -name '*.md' -o -name '*.example' \) -exec rm -f 
 
 chmod +x "${TARGET_ROOTFS}"/etc/local.d/*.start 2>/dev/null || true
 
+# 安装运行时脚本到 /usr/local/bin/
+echo "[setup] === 安装运行时脚本 ==="
+if [ -f "${SCRIPT_DIR}/scripts/network-watchdog.sh" ]; then
+    install -m 0755 "${SCRIPT_DIR}/scripts/network-watchdog.sh" "${TARGET_ROOTFS}/usr/local/bin/network-watchdog.sh"
+    echo "[setup]   已安装: network-watchdog.sh"
+fi
+
 # 统一路径
 if [ ! -e "${TARGET_ROOTFS}/usr/local/bin/sing-box" ] && [ -x "${TARGET_ROOTFS}/usr/bin/sing-box" ]; then
     ln -s /usr/bin/sing-box "${TARGET_ROOTFS}/usr/local/bin/sing-box"

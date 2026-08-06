@@ -27,6 +27,9 @@ enable_router_services() {
     _enable_service tailscale
     _enable_cloudflared
 
+    # 5. 监控服务
+    _enable_service network-watchdog
+
     # --- 根据 INFRA 启用组件服务 ---
     case ",${INFRA:-base}," in
         *",sing-box,"*)

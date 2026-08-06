@@ -23,6 +23,7 @@ check_rootfs() {
     _check_bin nft
     _check_bin tailscaled
     _check_bin cloudflared
+    _check_bin network-watchdog.sh
 
     # sing-box 仅在 INFRA=sing-box 时检查
     case ",${INFRA:-base}," in *",sing-box,"*)
@@ -59,6 +60,7 @@ check_rootfs() {
     _check_sv dnsmasq
     _check_sv tailscaled
     _check_sv cloudflared
+    _check_sv network-watchdog
 
     # sing-box 仅在 INFRA=sing-box 时检查
     case ",${INFRA:-base}," in *",sing-box,"*)

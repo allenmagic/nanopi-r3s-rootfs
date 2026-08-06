@@ -93,6 +93,13 @@ case "${INFRA:-base}" in sing-box) _deploy_cfg_ sing-box ;; esac
 # 清理文档文件
 find /etc \( -name '*.md' -o -name '*.example' \) -exec rm -f {} + 2>/dev/null || true
 
+# 安装运行时脚本到 /usr/local/bin/
+echo "[setup] === 安装运行时脚本 ==="
+if [ -f /scripts/network-watchdog.sh ]; then
+    install -m 0755 /scripts/network-watchdog.sh /usr/local/bin/network-watchdog.sh
+    echo "[setup]   已安装: network-watchdog.sh"
+fi
+
 # 统一路径：包管理器装的 sing-box 在 /usr/bin/，ln -s 到 /usr/local/bin/
 if [ ! -e /usr/local/bin/sing-box ] && [ -x /usr/bin/sing-box ]; then
     ln -s /usr/bin/sing-box /usr/local/bin/sing-box

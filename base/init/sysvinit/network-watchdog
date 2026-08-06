@@ -1,0 +1,40 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          network-watchdog
+# Required-Start:    $network $remote_fs nftables dnsmasq
+# Required-Stop:     $network
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Network watchdog - monitors WAN/LAN connectivity
+### END INIT INFO
+
+DAEMON=/usr/local/bin/network-watchdog.sh
+PIDFILE=/var/run/network-watchdog.pid
+
+case "$1" in
+    start)
+        echo "Starting network-watchdog..."
+        "$DAEMON" daemon-start
+        ;;
+    stop)
+        echo "Stopping network-watchdog..."
+        "$DAEMON" daemon-stop
+        ;;
+    restart)
+        "$0" stop
+        sleep 2
+        "$0" start
+        ;;
+    status)
+        if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+            echo "network-watchdog is running"
+        else
+            echo "network-watchdog is not running"
+            exit 1
+        fi
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status}"
+        exit 1
+        ;;
+esac
