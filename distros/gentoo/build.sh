@@ -189,6 +189,7 @@ chroot_run "${STAGE3_DIR}" /usr/bin/env \
     TARGET_ROOTFS="/gentoo-rootfs" \
     GENTOO_MIRROR_BASE="${GENTOO_MIRROR_BASE}" \
     HOST_ARCH="${HOST_ARCH}" \
+    SCRIPT_DIR="/" \
     /bin/sh /setup.sh
 
 # setup.sh 在 stage3 内生成了 /gentoo-rootfs，现在把它移出来
