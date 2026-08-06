@@ -542,6 +542,7 @@ _enable_service_target nftables default
 _enable_service_target dnsmasq default
 _enable_service_target tailscale default
 _enable_service_target cloudflared default
+_enable_service_target network-watchdog default
 
 # 根据 INFRA 启用组件服务
 case ",${INFRA:-base}," in
