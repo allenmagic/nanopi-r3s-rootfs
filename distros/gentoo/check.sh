@@ -25,7 +25,7 @@ check_rootfs() {
     _check_bin nft      /usr/sbin/nft /sbin/nft
     _check_bin tailscaled /usr/local/bin/tailscaled
     _check_bin cloudflared /usr/local/bin/cloudflared
-    _check_bin network-watchdog.sh /usr/local/bin/network-watchdog.sh
+    _check_bin network-watchdog /usr/local/bin/network-watchdog
 
     # sing-box 仅在 INFRA=sing-box 时检查
     case ",${INFRA:-base}," in *",sing-box,"*)

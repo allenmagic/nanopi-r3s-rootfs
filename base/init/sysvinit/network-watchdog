@@ -8,7 +8,7 @@
 # Short-Description: Network watchdog - monitors WAN/LAN connectivity
 ### END INIT INFO
 
-DAEMON=/usr/local/bin/network-watchdog.sh
+DAEMON=/usr/local/bin/network-watchdog
 PIDFILE=/var/run/network-watchdog.pid
 
 case "$1" in

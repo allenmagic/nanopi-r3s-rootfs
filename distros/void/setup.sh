@@ -96,8 +96,8 @@ find /etc \( -name '*.md' -o -name '*.example' \) -exec rm -f {} + 2>/dev/null |
 # 安装运行时脚本到 /usr/local/bin/
 echo "[setup] === 安装运行时脚本 ==="
 if [ -f /scripts/network-watchdog.sh ]; then
-    install -m 0755 /scripts/network-watchdog.sh /usr/local/bin/network-watchdog.sh
-    echo "[setup]   已安装: network-watchdog.sh"
+    install -m 0755 /scripts/network-watchdog.sh /usr/local/bin/network-watchdog
+    echo "[setup]   已安装: network-watchdog"
 fi
 
 # 统一路径：包管理器装的 sing-box 在 /usr/bin/，ln -s 到 /usr/local/bin/

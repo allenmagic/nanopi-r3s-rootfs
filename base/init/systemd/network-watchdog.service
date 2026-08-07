@@ -4,8 +4,8 @@ After=network.target nftables.service dnsmasq.service
 
 [Service]
 Type=forking
-ExecStart=/usr/local/bin/network-watchdog.sh daemon-start
-ExecStop=/usr/local/bin/network-watchdog.sh daemon-stop
+ExecStart=/usr/local/bin/network-watchdog daemon-start
+ExecStop=/usr/local/bin/network-watchdog daemon-stop
 PIDFile=/var/run/network-watchdog.pid
 Restart=on-failure
 RestartSec=10

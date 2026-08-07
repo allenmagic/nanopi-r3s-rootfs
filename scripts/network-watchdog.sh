@@ -156,13 +156,13 @@ daemon_start() {
 
     log "[INFO] 启动网络看门狗守护进程（间隔 ${CHECK_INTERVAL}s / 5分钟）"
     (
-        echo $$ > "$PID_FILE"
         while true; do
             check_and_restart
             sleep "$CHECK_INTERVAL"
         done
     ) &
-    echo "守护进程已启动 (PID: $!)"
+    echo $! > "$PID_FILE"
+    echo "守护进程已启动 (PID: $(cat "$PID_FILE"))"
 }
 
 daemon_stop() {

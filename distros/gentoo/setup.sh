@@ -432,8 +432,8 @@ chmod +x "${TARGET_ROOTFS}"/etc/local.d/*.start 2>/dev/null || true
 # 安装运行时脚本到 /usr/local/bin/
 echo "[setup] === 安装运行时脚本 ==="
 if [ -f "${SCRIPT_DIR}/scripts/network-watchdog.sh" ]; then
-    install -m 0755 "${SCRIPT_DIR}/scripts/network-watchdog.sh" "${TARGET_ROOTFS}/usr/local/bin/network-watchdog.sh"
-    echo "[setup]   已安装: network-watchdog.sh"
+    install -m 0755 "${SCRIPT_DIR}/scripts/network-watchdog.sh" "${TARGET_ROOTFS}/usr/local/bin/network-watchdog"
+    echo "[setup]   已安装: network-watchdog"
 fi
 
 # 统一路径
@@ -504,53 +504,8 @@ mkdir -p "${TARGET_ROOTFS}/etc/runlevels"/{boot,default,sysinit}
 # ============================================================
 echo "[setup] === 启用服务 ==="
 
-# 定义服务启用函数（直接操作 TARGET_ROOTFS）
-_enable_service_target() {
-    _svc_="$1"
-    _rl_="${2:-default}"
-    if [ -f "${TARGET_ROOTFS}/etc/init.d/${_svc_}" ]; then
-        mkdir -p "${TARGET_ROOTFS}/etc/runlevels/${_rl_}"
-        ln -sf "/etc/init.d/${_svc_}" "${TARGET_ROOTFS}/etc/runlevels/${_rl_}/${_svc_}" 2>/dev/null || true
-        echo "[service]   启用: ${_svc_} (${_rl_})"
-    fi
-}
-
-# 系统基础服务
-_enable_service_target bootmisc boot
-_enable_service_target syslog default
-_enable_service_target crond default
-
-# 移除 headless 路由器不需要的键盘服务（依赖未安装的 kbd 包）
-rm -f "${TARGET_ROOTFS}/etc/runlevels/boot/keymaps" \
-      "${TARGET_ROOTFS}/etc/runlevels/boot/save-keymaps" \
-      "${TARGET_ROOTFS}/etc/runlevels/default/keymaps" \
-      "${TARGET_ROOTFS}/etc/runlevels/default/save-keymaps" 2>/dev/null || true
-
-# 网络服务
-. /network.env 2>/dev/null || true
-_enable_service_target net.lo boot
-_enable_service_target "net.${WAN_IFACE:-eth0}" default
-# LAN 接口：仅在设置且不同于 WAN 时才启用独立服务
-if [ -n "${LAN_IFACE:-}" ] && [ "${LAN_IFACE}" != "${WAN_IFACE:-eth0}" ]; then
-    _enable_service_target "net.${LAN_IFACE}" default
-fi
-
-# base 应用服务
-_enable_service_target sshd default
-_enable_service_target busybox-ntpd default
-_enable_service_target nftables default
-_enable_service_target dnsmasq default
-_enable_service_target tailscale default
-_enable_service_target cloudflared default
-_enable_service_target network-watchdog default
-
-# 根据 INFRA 启用组件服务
-case ",${INFRA:-base}," in
-    *",sing-box,"*)
-        echo "[service] --- sing-box 服务 ---"
-        _enable_service_target sing-box default
-        ;;
-esac
+. /service.sh
+enable_router_services
 
 # 密钥注入（如果需要在目标 rootfs 内注入）
 # 注意：inject-secrets.sh 需要知道目标路径
