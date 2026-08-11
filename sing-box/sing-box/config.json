@@ -74,7 +74,7 @@
       "system_interface_name": "ts0",
       "state_directory": "/etc/sing-box/headscale",
       "auth_key": "__ROUTER_HEADSCALE_AUTH_KEY__",
-      "control_url": "https://hs.zyx1986.icu",
+      "control_url": "__ROUTER_HEADSCALE_CTL_URL__",
       "hostname": "r3s-alpine-router-beijing",
       "advertise_routes": ["192.168.8.0/24"]
     }
