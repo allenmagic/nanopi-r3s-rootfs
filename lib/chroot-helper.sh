@@ -22,7 +22,9 @@ _CHROOT_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # 需要时挂载的伪文件系统列表（按挂载顺序）
 # 说明：不单独挂 dev/pts —— /dev 已整体 --bind（含 pts），
 #       在 WSL 等环境单独 bind /dev/pts 常失败且多余。
-_CHROOT_VFS="dev proc sys run"
+# shm 单独挂 tmpfs：bind /dev 不包含子挂载点，而 Gentoo 等构建
+# （python 的 sem_open 检测）需要 /dev/shm 为 mode=1777 的 tmpfs
+_CHROOT_VFS="dev proc sys run shm"
 
 # 状态文件：记录某个 rootfs 实际挂载了哪些点（供逆序卸载）
 _chroot_state_file() {
@@ -78,6 +80,7 @@ chroot_enter() {
             proc)  src="proc";  opts="-t proc" ;;
             sys)   src="/sys";  opts="--bind"  ;;
             run)   src="/run";  opts="--bind"  ;;
+            shm)   src="shm";   opts="-t tmpfs" ;;
             *)     src="";      opts="--bind"  ;;
         esac
 
@@ -87,6 +90,13 @@ chroot_enter() {
                 echo "  [警告] 挂载 proc 失败（$target），跳过" >&2
                 continue
             fi
+        elif [ "$opts" = "-t tmpfs" ]; then
+            # /dev/shm：mode=1777，POSIX 信号量（sem_open）依赖
+            if ! mount -t tmpfs -o mode=1777 none "$target" 2>/dev/null; then
+                echo "  [警告] 挂载 $vfs 失败（tmpfs → $target），跳过" >&2
+                continue
+            fi
+            mount --make-private "$target" 2>/dev/null || true
         else
             if ! mount $opts "$src" "$target" 2>/dev/null; then
                 echo "  [警告] 挂载 $vfs 失败（$src → $target），跳过" >&2
@@ -146,7 +156,7 @@ chroot_exit() {
     else
         # 兜底：无状态文件时按已知列表逆序卸载
         local vfs
-        for vfs in run sys proc dev; do
+        for vfs in shm run sys proc dev; do
             umount -l "$rootfs/$vfs" 2>/dev/null || umount -R "$rootfs/$vfs" 2>/dev/null || true
         done
     fi
