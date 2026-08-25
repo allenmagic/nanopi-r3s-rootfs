@@ -104,7 +104,7 @@ jobs:
             xz-utils zstd file binutils \
             curl ca-certificates wget \
             mmdebstrap debootstrap debian-archive-keyring \
-            gpgv gnupg
+            gpgv gnupg arch-test qemu-user-static
 
       - name: Build ${{ matrix.distro }} rootfs (${{ matrix.infra }}, ${{ matrix.arch }})
         run: |
