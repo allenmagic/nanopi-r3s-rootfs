@@ -69,9 +69,9 @@ case "${WORKDIR}" in
         exit 1 ;;
 esac
 
-# ---------- 跨架构预检 ----------
+# ---------- 跨架构预检（仅当目标 aarch64 且宿主非 arm 时才需要 qemu/binfmt）----------
 HOST_ARCH="$(uname -m)"
-if [ "${HOST_ARCH}" != "aarch64" ] && [ "${HOST_ARCH}" != "arm64" ]; then
+if [ "${ARCH}" = "aarch64" ] && [ "${HOST_ARCH}" != "aarch64" ] && [ "${HOST_ARCH}" != "arm64" ]; then
     BINFMT=/proc/sys/fs/binfmt_misc/qemu-aarch64
     if [ ! -e "${BINFMT}" ] || ! grep -q '^enabled' "${BINFMT}" 2>/dev/null; then
         echo "错误：宿主架构为 ${HOST_ARCH}，但未启用 aarch64 的 binfmt/qemu。" >&2
@@ -133,6 +133,11 @@ cp -r "${REPO_ROOT}/scripts" "${ROOTFS}/scripts"
 	"${REPO_ROOT}/tools/inject-secrets.sh" write "${ROOTFS}"
 	cp -f "${REPO_ROOT}/tools/inject-secrets.sh" "${ROOTFS}/inject-secrets.sh"
 cp -f "${SCRIPT_DIR}/package.list" "${ROOTFS}/package.list"
+# 按目标架构修正二进制下载 URL（cloudflared 等按架构分发的包）
+case "${ARCH}" in
+    x86_64)  sed -i 's|cloudflared-linux-arm64|cloudflared-linux-amd64|g' "${ROOTFS}/package.list" ;;
+    aarch64) sed -i 's|cloudflared-linux-amd64|cloudflared-linux-arm64|g' "${ROOTFS}/package.list" ;;
+esac
 cp -f "${SCRIPT_DIR}/service.sh" "${ROOTFS}/service.sh"
 cp -f "${SCRIPT_DIR}/network.sh" "${ROOTFS}/network.sh"
 cp -f "${SCRIPT_DIR}/check.sh" "${ROOTFS}/check.sh"

@@ -3,6 +3,7 @@ name: Build Router Rootfs
 env:
   ALL_DISTROS: '["void","devuan","debian","alpine","gentoo"]'  # 与 workflow_dispatch.inputs.distro.options 保持同步
   ALL_INFRAS: '["base","sing-box"]'     # 路由系统组件
+  ALL_ARCHS: '["aarch64","x86_64"]'     # 与 workflow_dispatch.inputs.arch.options 保持同步
 
 on:
   workflow_dispatch:
@@ -19,6 +20,12 @@ on:
         required: true
         default: base
         options: [all, base, sing-box]
+      arch:
+        description: "目标架构（aarch64 在 ARM runner、x86_64 在 x86 runner 原生构建，无需 qemu）"
+        type: choice
+        required: true
+        default: aarch64
+        options: [aarch64, x86_64, all]
       mirror:
         description: "镜像源"
         type: choice
@@ -49,18 +56,36 @@ jobs:
           else
             INFRAS='["${{ inputs.infra }}"]'
           fi
-          echo "matrix={\"distro\":${DISTROS},\"infra\":${INFRAS}}" >> "$GITHUB_OUTPUT"
+          # arch 列表
+          if [ "${{ inputs.arch }}" = "all" ]; then
+            ARCHS='${{ env.ALL_ARCHS }}'
+          else
+            ARCHS='["${{ inputs.arch }}"]'
+          fi
+          # 生成 include 矩阵：每个组合带对应 runner（原生构建，不交叉编译）
+          INCLUDE="["
+          for D in $(echo "${DISTROS}" | jq -r '.[]'); do
+            for I in $(echo "${INFRAS}" | jq -r '.[]'); do
+              for A in $(echo "${ARCHS}" | jq -r '.[]'); do
+                if [ "$A" = "aarch64" ]; then R="ubuntu-24.04-arm"; else R="ubuntu-24.04"; fi
+                INCLUDE="${INCLUDE}{\"distro\":\"${D}\",\"infra\":\"${I}\",\"arch\":\"${A}\",\"runner\":\"${R}\"},"
+              done
+            done
+          done
+          INCLUDE="${INCLUDE%,}]"
+          echo "matrix={\"include\":${INCLUDE}}" >> "$GITHUB_OUTPUT"
 
   build:
     needs: prepare
-    runs-on: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
-    name: build-${{ matrix.distro }}-${{ matrix.infra }}
+    name: build-${{ matrix.distro }}-${{ matrix.infra }}-${{ matrix.arch }}
     env:
       DISTRO: ${{ matrix.distro }}
       INFRA: ${{ matrix.infra }}
+      ARCH: ${{ matrix.arch }}
       PACK: "1"
       REPO: ${{ inputs.mirror }}
       ROOT_PASSWORD: ${{ secrets.ROOT_PASSWORD }}
@@ -81,7 +106,7 @@ jobs:
             mmdebstrap debootstrap debian-archive-keyring \
             gpgv gnupg
 
-      - name: Build ${{ matrix.distro }} rootfs (${{ matrix.infra }})
+      - name: Build ${{ matrix.distro }} rootfs (${{ matrix.infra }}, ${{ matrix.arch }})
         run: |
           set -euo pipefail
           chmod +x "distros/${DISTRO}/build.sh" || true
@@ -99,7 +124,7 @@ jobs:
             ls -lR build/${DISTRO} || true
             exit 1
           fi
-          out="${DISTRO}-${INFRA}-aarch64-rootfs.tar.${f##*.}"
+          out="${DISTRO}-${INFRA}-${ARCH}-rootfs.tar.${f##*.}"
           cp "$f" "$out"
           sha256sum "$out" > "${out}.sha256"
           echo "path=$out" >> "$GITHUB_OUTPUT"
@@ -108,7 +133,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ matrix.distro }}-${{ matrix.infra }}-aarch64-rootfs
+          name: ${{ matrix.distro }}-${{ matrix.infra }}-${{ matrix.arch }}-rootfs
           path: |
             ${{ steps.artifact.outputs.path }}
             ${{ steps.artifact.outputs.sha }}
