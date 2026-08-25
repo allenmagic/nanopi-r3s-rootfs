@@ -78,7 +78,7 @@ mkdir -p "${BUILD_BASE}" "${CACHE_DIR}" "${WORKDIR}"
 
 # ---------- 跨架构预检 ----------
 HOST_ARCH="$(uname -m)"
-if [ "${HOST_ARCH}" != "aarch64" ] && [ "${HOST_ARCH}" != "arm64" ]; then
+if [ "${ARCH}" = "aarch64" ] && [ "${HOST_ARCH}" != "aarch64" ] && [ "${HOST_ARCH}" != "arm64" ]; then
     BINFMT=/proc/sys/fs/binfmt_misc/qemu-aarch64
     if [ ! -e "${BINFMT}" ] || ! grep -q '^enabled' "${BINFMT}" 2>/dev/null; then
         echo "错误：宿主架构为 ${HOST_ARCH}，但未启用 aarch64 的 binfmt/qemu。" >&2

@@ -47,8 +47,8 @@ else
     _MIRROR_BASE="${MIRRORS[${_REPO_IN}]:-${MIRRORS[default]}}"
     REPO="${_MIRROR_BASE}/current/${ARCH}"
 fi
-# XBPS_STATIC_URL 从 mirror base 推导，也可单独指定覆盖
-XBPS_STATIC_URL="${XBPS_STATIC_URL:-${_MIRROR_BASE%/current/*}/static/xbps-static-latest.aarch64-musl.tar.xz}"
+# XBPS_STATIC_URL 从 mirror base 推导，也可单独指定覆盖（按目标架构选择）
+XBPS_STATIC_URL="${XBPS_STATIC_URL:-${_MIRROR_BASE%/current/*}/static/xbps-static-latest.${ARCH}-musl.tar.xz}"
 unset _REPO_IN _MIRROR_BASE
 ROOT_PASSWORD="${ROOT_PASSWORD:-root}"             # CI Secret，未设默认 root
 HOSTNAME_VAL="${HOSTNAME_VAL:-nanopi-r3s-void}"
@@ -99,9 +99,9 @@ mkdir -p "${ROOTFS}/etc/xbps.d"
 echo "repository=${REPO}" > "${ROOTFS}/etc/xbps.d/00-repository-main.conf"
 
 
-# ---------- 第三步前：跨架构能力预检 ----------
+# ---------- 第三步前：跨架构能力预检（仅目标 aarch64 且宿主非 arm 时需要 qemu/binfmt）----------
 HOST_ARCH="$(uname -m)"
-if [ "${HOST_ARCH}" != "aarch64" ] && [ "${HOST_ARCH}" != "arm64" ]; then
+if [ "${ARCH}" = "aarch64" ] && [ "${HOST_ARCH}" != "aarch64" ] && [ "${HOST_ARCH}" != "arm64" ]; then
     # 非 aarch64 宿主：必须有 binfmt+qemu 才能 chroot 进 aarch64 rootfs
     if [ ! -e /proc/sys/fs/binfmt_misc/qemu-aarch64 ]; then
         echo "错误：宿主架构为 ${HOST_ARCH}，但未注册 aarch64 的 binfmt/qemu。" >&2
