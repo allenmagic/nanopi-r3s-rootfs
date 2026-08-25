@@ -163,12 +163,18 @@ fi
 echo "[debian] 跨架构预检通过（宿主 ${HOST_ARCH}）"
 
 # ---------- 第二步：用 mmdebstrap 构建 minbase（systemd 作为 init） ----------
+# mmdebstrap 用 Debian 架构命名（amd64/arm64），统一命名需映射
+case "${ARCH}" in
+    x86_64)  DEB_ARCH="amd64" ;;
+    aarch64) DEB_ARCH="arm64" ;;
+    *)       DEB_ARCH="${ARCH}" ;;
+esac
 echo "[debian] 2. 用 mmdebstrap 构建 minbase → ${ROOTFS} ..."
 rm -rf "${ROOTFS}"
 mkdir -p "${ROOTFS}"
 
 mmdebstrap \
-    --arch="${ARCH}" \
+    --arch="${DEB_ARCH}" \
     --variant=minbase \
     --components="${COMPONENTS}" \
     --keyring="${KEYRING}" \
