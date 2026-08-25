@@ -27,8 +27,16 @@ BUILD_BASE="${BUILD_BASE:-${BUILD_ROOT}/${DISTRO}}"
 STAGE3_DIR="${STAGE3_DIR:-${BUILD_BASE}/stage3}"         # stage3 解压目录（构建环境）
 ROOTFS="${ROOTFS:-${BUILD_BASE}/gentoo-rootfs}"         # 最终产物目录（轻量 rootfs）
 CACHE_DIR="${CACHE_DIR:-${BUILD_BASE}/cache}"
-MIRROR="${MIRROR:-https://distfiles.gentoo.org/releases/arm64/autobuilds}"
-ARCH="${ARCH:-arm64}"
+ARCH="${ARCH:-aarch64}"                                 # 统一命名（与 CI/workflow 一致）
+
+# Gentoo 的架构命名：aarch64 → arm64，x86_64 → amd64（stage3 路径与镜像目录都用它）
+case "${ARCH}" in
+    aarch64|arm64) GENTOO_ARCH="arm64" ;;
+    x86_64|amd64)  GENTOO_ARCH="amd64" ;;
+    *)             GENTOO_ARCH="${ARCH}" ;;
+esac
+
+MIRROR="${MIRROR:-https://distfiles.gentoo.org/releases/${GENTOO_ARCH}/autobuilds}"
 ROOT_PASSWORD="${ROOT_PASSWORD:-root}"
 HOSTNAME_VAL="${HOSTNAME_VAL:-nanopi-r3s-gentoo}"
 SETUP_SCRIPT="${SCRIPT_DIR}/setup.sh"
@@ -36,9 +44,9 @@ PACK="${PACK:-0}"
 
 # ---------- 镜像源映射 ----------
 declare -A MIRRORS
-MIRRORS["default"]="https://distfiles.gentoo.org/releases/arm64/autobuilds"
-MIRRORS["tuna"]="https://mirrors.tuna.tsinghua.edu.cn/gentoo/releases/arm64/autobuilds"
-MIRRORS["tsinghua"]="https://mirrors.tuna.tsinghua.edu.cn/gentoo/releases/arm64/autobuilds"
+MIRRORS["default"]="https://distfiles.gentoo.org/releases/${GENTOO_ARCH}/autobuilds"
+MIRRORS["tuna"]="https://mirrors.tuna.tsinghua.edu.cn/gentoo/releases/${GENTOO_ARCH}/autobuilds"
+MIRRORS["tsinghua"]="https://mirrors.tuna.tsinghua.edu.cn/gentoo/releases/${GENTOO_ARCH}/autobuilds"
 
 _REPO_IN="${REPO:-default}"
 if [[ "${_REPO_IN}" =~ ^https?:// ]]; then
@@ -96,11 +104,12 @@ if [ "${ARCH}" = "aarch64" ] && [ "${HOST_ARCH}" != "aarch64" ] && [ "${HOST_ARC
 fi
 echo "[gentoo] 跨架构预检通过（宿主 ${HOST_ARCH}）"
 
-# ---------- 第一步：下载 stage3-arm64-openrc ----------
-echo "[gentoo] 1. 解析最新 stage3-arm64-openrc 版本 ..."
-LATEST_TXT="$(wget -t 2 -T 30 -qO- "${MIRROR}/latest-stage3-arm64-openrc.txt" 2>/dev/null || true)"
+# ---------- 第一步：下载 stage3-<arch>-openrc ----------
+# GENTOO_ARCH 已在参数区定义（aarch64→arm64、x86_64→amd64）
+echo "[gentoo] 1. 解析最新 stage3-${GENTOO_ARCH}-openrc 版本 ..."
+LATEST_TXT="$(wget -t 2 -T 30 -qO- "${MIRROR}/latest-stage3-${GENTOO_ARCH}-openrc.txt" 2>/dev/null || true)"
 if [ -z "${LATEST_TXT}" ]; then
-    echo "错误：无法下载 ${MIRROR}/latest-stage3-arm64-openrc.txt" >&2
+    echo "错误：无法下载 ${MIRROR}/latest-stage3-${GENTOO_ARCH}-openrc.txt" >&2
     echo "请检查网络连接或尝试切换镜像源（REPO=default 使用官方源）" >&2
     exit 1
 fi
