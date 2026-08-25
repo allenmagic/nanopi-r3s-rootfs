@@ -26,9 +26,14 @@ CACHE_DIR="${CACHE_DIR:-${BUILD_BASE}/cache}"      # 下载缓存（复用免重
 ARCH="${ARCH:-aarch64}"
 
 # ---------- 镜像源解析：REPO 和 XBPS_STATIC_URL ----------
-# 镜像别名映射，别名 → mirror base URL。Void 镜像遵循同一结构：
-#   ${base}/current/${ARCH}              — 包仓库
-#   ${base}/static/xbps-static-...       — xbps-static 工具
+# 镜像别名映射，别名 → mirror base URL。
+# Void 镜像的 repodata 布局按架构不一致（实测）：
+#   x86_64  → ${base}/current/x86_64-repodata          （扁平）
+#   aarch64 → ${base}/current/aarch64/aarch64-repodata （嵌套）
+# 因此 REPO 基址需按架构选择：
+#   x86_64  → ${base}/current
+#   aarch64 → ${base}/current/aarch64
+# xbps-static 位于 ${base}/static/xbps-static-latest.<arch>-musl.tar.xz
 declare -A MIRRORS
 MIRRORS["default"]="https://repo-default.voidlinux.org"
 MIRRORS["tuna"]="https://mirrors.tuna.tsinghua.edu.cn/voidlinux"
@@ -45,7 +50,12 @@ if [[ "${_REPO_IN}" =~ ^[a-z]+:// ]]; then
     _MIRROR_BASE="${_REPO_IN}"
 else
     _MIRROR_BASE="${MIRRORS[${_REPO_IN}]:-${MIRRORS[default]}}"
-    REPO="${_MIRROR_BASE}/current/${ARCH}"
+    # 按架构选择 repodata 所在层级（见上方注释）
+    if [ "${ARCH}" = "x86_64" ]; then
+        REPO="${_MIRROR_BASE}/current"
+    else
+        REPO="${_MIRROR_BASE}/current/${ARCH}"
+    fi
 fi
 # XBPS_STATIC_URL 从 mirror base 推导，也可单独指定覆盖（按目标架构选择）
 XBPS_STATIC_URL="${XBPS_STATIC_URL:-${_MIRROR_BASE%/current/*}/static/xbps-static-latest.${ARCH}-musl.tar.xz}"
