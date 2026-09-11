@@ -91,5 +91,7 @@ check_rootfs() {
     # ---------- 结果 ----------
     _TOTAL=$((_OK + _FAIL))
     echo "[check] === $_OK/$_TOTAL 通过 ==="
-    [ "$_FAIL" -eq 0 ] || echo "[check] 警告: $_FAIL 项检查未通过"
+    # 必须中止构建（与 alpine 链一致）：只警告的话 check_rootfs 恒返回 0，
+    # 缺失二进制/服务的镜像照样出包。
+    [ "$_FAIL" -eq 0 ] || { echo "[check] 构建不完整，中止"; exit 1; }
 }

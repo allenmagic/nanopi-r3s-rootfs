@@ -9,6 +9,10 @@ enable_router_services() {
     echo "[service] === 启用路由器服务 (INFRA=${INFRA:-base}) ==="
 
     # --- 系统基础服务 ---
+    # sysctl 必须显式注册：base/sysctl.d/90-router.conf 的 ip_forward=1 靠它应用，
+    # 不注册则 ip_forward 保持 0 → 转发/NAT 全失效（且启动日志无任何迹象）。
+    # 用 base/init/openrc/sysctl（覆盖发行版自带版本，见该文件注释）。
+    _enable_service sysctl boot
     _enable_service bootmisc boot
     _enable_service syslogd
     _enable_service crond

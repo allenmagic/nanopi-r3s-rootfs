@@ -148,7 +148,9 @@ table inet filter {
         iifname @tun_interfaces accept;
         iifname @lan_interfaces accept;
 
-        log prefix "INPUT_DROP: " limit rate 10/minute drop;
+        # limit 必须在 log 之前：反序（log 在前）会让每个丢包都先记一条日志，
+        # 限速只作用于其后的 drop，等于没有限速 → 日志洪泛。
+        limit rate 10/minute log prefix "INPUT_DROP: " drop;
     }
 
     # ============================================================
@@ -186,7 +188,7 @@ table inet filter {
         iifname @vpn_interfaces oifname @lan_interfaces accept;
         iifname @lan_interfaces oifname @vpn_interfaces accept;
 
-        log prefix "FORWARD_DROP: " limit rate 10/minute drop;
+        limit rate 10/minute log prefix "FORWARD_DROP: " drop;
     }
 
     # ============================================================
@@ -194,6 +196,7 @@ table inet filter {
     # ============================================================
     chain output {
         type filter hook output priority filter; policy accept;
-        log prefix "OUTPUT_NEW: " ct state new limit rate 5/minute accept;
+        # 同上：限速在前、日志在后
+        ct state new limit rate 5/minute log prefix "OUTPUT_NEW: " accept;
     }
 }

@@ -4,7 +4,9 @@ name=$RC_SVCNAME
 description="Cloudflare Tunnel"
 
 command="/usr/local/bin/cloudflared"
-command_args="--no-autoupdate tunnel run"
+# --protocol http2：QUIC（UDP 7844）在国内常被运营商干扰导致隧道频繁重连，
+# 走 TCP 的 http2 最稳。--protocol 必须夹在 tunnel 与 run 之间。
+command_args="--no-autoupdate tunnel --protocol http2 run"
 command_background="yes"
 pidfile="/var/run/$name.pid"
 output_log="/var/log/$name.log"

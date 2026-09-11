@@ -425,6 +425,12 @@ _deploy_cfg_ base
 # sing-box 模式叠加部署 sing-box/
 case "${INFRA:-base}" in sing-box) _deploy_cfg_ sing-box ;; esac
 
+# sysctl.d 的 `-key = value` 是 systemd-sysctl 语法（键不存在时静默跳过），
+# busybox sysctl 不认这个前缀 —— 整行被跳过，导致 ip_forward=1、fq/bbr 等
+# 关键项在本链上从未生效。构建期剥掉前缀；共享的 base/sysctl.d 保持原样
+# （systemd 系的发行版仍按 `-` 语义处理）。配合 base/init/openrc/sysctl 的 -e。
+sed -i 's/^[[:space:]]*-//' "${TARGET_ROOTFS}"/etc/sysctl.d/*.conf 2>/dev/null || true
+
 find "${TARGET_ROOTFS}/etc" \( -name '*.md' -o -name '*.example' \) -exec rm -f {} + 2>/dev/null || true
 
 chmod +x "${TARGET_ROOTFS}"/etc/local.d/*.start 2>/dev/null || true
@@ -469,8 +475,21 @@ else
     grep -qx '/bin/bash' "${TARGET_ROOTFS}/etc/shells" 2>/dev/null || echo '/bin/bash' >> "${TARGET_ROOTFS}/etc/shells"
 fi
 
+# 登录环境 PATH：ROOT= emerge 时 baselayout 的 env-update 只作用于 stage3 构建
+# 环境，目标 rootfs 残留的 /etc/profile.env 里 PATH 缺 /bin:/sbin:/usr/sbin
+# （实测只剩 /usr/local/sbin:/usr/local/bin:/usr/bin:/opt/bin），登录后
+# ls/cat（/bin）、rc-service（/sbin）全找不到。无条件用完整 PATH 覆盖。
+mkdir -p "${TARGET_ROOTFS}/etc/env.d"
+cat > "${TARGET_ROOTFS}/etc/profile.env" <<'EOF'
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+EOF
+echo "[setup]   已写 /etc/profile.env（登录 PATH）"
+
 echo "[setup] 设置主机名：${HOSTNAME_VAL}"
 echo "${HOSTNAME_VAL}" > "${TARGET_ROOTFS}/etc/hostname"
+# Gentoo 的 hostname 服务读 conf.d/hostname（hostname="..." 格式），
+# 仅写 /etc/hostname（Alpine 习惯）在 Gentoo 上不生效，主机会停在默认名。
+echo "hostname=\"${HOSTNAME_VAL}\"" > "${TARGET_ROOTFS}/etc/conf.d/hostname"
 if [ ! -f "${TARGET_ROOTFS}/etc/hosts" ]; then
     cat > "${TARGET_ROOTFS}/etc/hosts" <<EOF
 127.0.0.1       localhost
@@ -484,12 +503,14 @@ else
 fi
 
 # 确保串口控制台 — 直接覆盖（不用 stage3 自带的 inittab）
-# id 字段必须 ≤4 字符，sysvinit 限制；S2 = serial-2（ttyS2）
+# id 字段必须 ≤4 字符且**唯一**（sysvinit 限制）；S2 = serial-2（ttyS2）。
+# 三行都用 si 会让 sysvinit 丢弃 openrc boot / default 两条 —— runlevel
+# 迁移不执行，default 级服务（sshd/dnsmasq/nftables…）根本不启动。
 cat > "${TARGET_ROOTFS}/etc/inittab" <<EOF
 id:3:initdefault:
 si::sysinit:/sbin/openrc sysinit
-si::sysinit:/sbin/openrc boot
-si::wait:/sbin/openrc default
+rc::bootwait:/sbin/openrc boot
+d3::wait:/sbin/openrc default
 l0:0:wait:/sbin/openrc shutdown
 l6:6:wait:/sbin/openrc reboot
 S2::respawn:/sbin/agetty ${SERIAL_BAUD} ${SERIAL_DEV} vt100

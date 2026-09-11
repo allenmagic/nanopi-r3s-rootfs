@@ -4,7 +4,9 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/var/run/tailscale/tailscaled.sock
+# --config 必须显式传：tailscaled 不会自动读 /etc/tailscale/config.json，
+# 缺了它 netfilterMode/authKey/acceptRoutes 等字段全部静默失效。
+ExecStart=/usr/local/bin/tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/var/run/tailscale/tailscaled.sock --config=/etc/tailscale/config.json
 RuntimeDirectory=tailscale
 StateDirectory=tailscale
 Restart=on-failure

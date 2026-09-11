@@ -1,0 +1,27 @@
+#!/sbin/openrc-run
+# 自定义 sysctl 服务（覆盖发行版自带的 /etc/init.d/sysctl）。
+#
+# 背景：base/sysctl.d/*.conf 里的 `-key = value` 是 systemd-sysctl 语法
+# （键不存在时静默跳过）。OpenRC 系用 busybox sysctl，不认这个前缀 —— 整行被
+# 跳过，导致 ip_forward=1、fq/bbr（80-performance.conf）这类关键项在物理机上
+# 从未生效。解法：构建期由各 distro 的 setup.sh 剥掉行首前缀（共享的
+# base/sysctl.d 保持 systemd 语义不变），本服务负责用 -e 容忍剥离后仍可能
+# 不存在的键（如 wg0/ts0 接口尚未创建时的 rp_filter）。
+
+description="Configure kernel parameters"
+
+depend() {
+    after clock
+    before bootmisc logger
+    keyword -prefix -systemd-nspawn -vserver
+}
+
+start() {
+    ebegin "Configuring kernel parameters"
+    local f
+    for f in /etc/sysctl.d/*.conf; do
+        [ -f "$f" ] && sysctl -e -p "$f"
+    done
+    [ -f /etc/sysctl.conf ] && sysctl -e -p /etc/sysctl.conf
+    eend 0
+}
