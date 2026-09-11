@@ -14,7 +14,11 @@ enable_router_services() {
     # 用 base/init/openrc/sysctl（覆盖发行版自带版本，见该文件注释）。
     _enable_service sysctl boot
     _enable_service bootmisc boot
-    _enable_service syslogd
+    # 服务名是 syslog 不是 syslogd：init 脚本由 ../gentoo/setup.sh 生成为
+    # /etc/init.d/syslog（busybox syslogd 的包装）。写成 syslogd 时
+    # _enable_service 因找不到该文件而静默跳过，check.sh 随后以
+    # 「init 脚本存在但未在 default runlevel 注册」中止构建。
+    _enable_service syslog
     _enable_service crond
 
     # --- 网络接口服务 ---
@@ -72,5 +76,12 @@ _enable_service() {
         mkdir -p "${TARGET_ROOTFS}/etc/runlevels/${_rl_}"
         ln -sf "/etc/init.d/${_svc_}" "${TARGET_ROOTFS}/etc/runlevels/${_rl_}/${_svc_}" 2>/dev/null || true
         echo "[service]   启用: ${_svc_} (${_rl_})"
+    else
+        # 静默跳过会让「服务名写错」一路无声通过，直到 check.sh 才以
+        # 「init 脚本存在但未在 runlevel 注册」中止构建，排查成本高得多
+        # （syslog/syslogd 那次就是）。
+        # 这里只警告不中止：有些服务在特定配置下本就可能不存在
+        # （sing-box 仅在 INFRA=sing-box 等），必需集合交给 check.sh 把关。
+        echo "[service]   ⚠ 跳过 ${_svc_}: ${TARGET_ROOTFS}/etc/init.d/${_svc_} 不存在（服务名写错？）" >&2
     fi
 }
