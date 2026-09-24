@@ -11,6 +11,7 @@
 # ========== base ==========
 [pm] openssh
 [pm] chrony
+[pm] ca-certificates-bundle
 [pm] curl
 [pm] bash
 [pm] nano

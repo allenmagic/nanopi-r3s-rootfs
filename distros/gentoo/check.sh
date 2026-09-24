@@ -17,7 +17,16 @@ check_rootfs() {
         done
         echo "  ✗ $_b_ 缺失!"; _FAIL=$((_FAIL + 1))
     }
+    _check_ca_certs() {
+        if [ -f "${TARGET_ROOTFS}/etc/ssl/certs/ca-certificates.crt" ]; then
+            echo "  ✓ ca-certificates.crt"; _OK=$((_OK + 1))
+        else
+            echo "  ✗ ${TARGET_ROOTFS}/etc/ssl/certs/ca-certificates.crt 缺失!"; _FAIL=$((_FAIL + 1))
+        fi
+    }
+
     echo "[check] 二进制:"
+    _check_bin init     /sbin/init
     _check_bin bash     /bin/bash
     _check_bin busybox  /bin/busybox
     _check_bin sshd     /usr/sbin/sshd
@@ -26,6 +35,13 @@ check_rootfs() {
     _check_bin tailscaled /usr/local/bin/tailscaled
     _check_bin cloudflared /usr/local/bin/cloudflared
     _check_bin network-watchdog /usr/local/bin/network-watchdog
+    _check_bin agetty   /sbin/agetty /usr/sbin/agetty
+    _check_ca_certs
+    if grep -qE "::respawn:/sbin/agetty.*[[:space:]]${SERIAL_DEV:-ttyS[0-9]}([[:space:]]|$)" "${TARGET_ROOTFS}/etc/inittab" 2>/dev/null; then
+        echo "  ✓ inittab 串口 getty 激活"; _OK=$((_OK + 1))
+    else
+        echo "  ✗ inittab 无激活串口 getty 行!"; _FAIL=$((_FAIL + 1))
+    fi
 
     # sing-box 仅在 INFRA=sing-box 时检查
     case ",${INFRA:-base}," in *",sing-box,"*)

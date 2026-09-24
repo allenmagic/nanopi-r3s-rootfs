@@ -61,7 +61,9 @@ enable_router_services() {
     rm -f "${TARGET_ROOTFS}/etc/runlevels/boot/keymaps" \
           "${TARGET_ROOTFS}/etc/runlevels/boot/save-keymaps" \
           "${TARGET_ROOTFS}/etc/runlevels/default/keymaps" \
-          "${TARGET_ROOTFS}/etc/runlevels/default/save-keymaps" 2>/dev/null || true
+          "${TARGET_ROOTFS}/etc/runlevels/default/save-keymaps" \
+          "${TARGET_ROOTFS}/etc/runlevels/boot/termencoding" \
+          "${TARGET_ROOTFS}/etc/runlevels/boot/save-termencoding" 2>/dev/null || true
 
     echo "[service] === 服务启用完成 ==="
 }

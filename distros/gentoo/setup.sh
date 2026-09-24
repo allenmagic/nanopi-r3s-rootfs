@@ -393,10 +393,10 @@ INITEOF
 chmod 755 "${TARGET_ROOTFS}/etc/init.d/crond"
 
 # 配置时区
-if [ -f "/usr/share/zoneinfo/${TIMEZONE}" ]; then
-    cp "/usr/share/zoneinfo/${TIMEZONE}" "${TARGET_ROOTFS}/etc/localtime" 2>/dev/null || true
+if [ -f "${TARGET_ROOTFS}/usr/share/zoneinfo/${TIMEZONE}" ]; then
+    cp "${TARGET_ROOTFS}/usr/share/zoneinfo/${TIMEZONE}" "${TARGET_ROOTFS}/etc/localtime" 2>/dev/null || true
 else
-    echo "[setup] 警告：时区文件 /usr/share/zoneinfo/${TIMEZONE} 不存在" >&2
+    echo "[setup] 警告：时区文件 ${TARGET_ROOTFS}/usr/share/zoneinfo/${TIMEZONE} 不存在" >&2
 fi
 
 # ============================================================

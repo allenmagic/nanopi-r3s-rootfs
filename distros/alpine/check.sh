@@ -8,13 +8,25 @@ check_rootfs() {
     _OK=0; _FAIL=0
 
     # ---------- 1. 关键二进制 ----------
-    _check_bin() { _b_="$1"
+    _check_bin() { _b_="$1"; shift
+        for _p_ in "$@"; do
+            [ -x "${_p_}" ] && { echo "  ✓ $_b_"; _OK=$((_OK + 1)); return 0; }
+        done
         if command -v "$_b_" >/dev/null 2>&1; then
             echo "  ✓ $_b_"; _OK=$((_OK + 1))
         else
             echo "  ✗ $_b_ 缺失!"; _FAIL=$((_FAIL + 1))
         fi
     }
+
+    _check_ca_certs() {
+        if [ -f /etc/ssl/certs/ca-certificates.crt ]; then
+            echo "  ✓ ca-certificates.crt"; _OK=$((_OK + 1))
+        else
+            echo "  ✗ /etc/ssl/certs/ca-certificates.crt 缺失!"; _FAIL=$((_FAIL + 1))
+        fi
+    }
+
     echo "[check] 二进制:"
     _check_bin bash
     _check_bin sshd
@@ -24,6 +36,13 @@ check_rootfs() {
     _check_bin tailscaled
     _check_bin cloudflared
     _check_bin network-watchdog
+    _check_bin agetty /sbin/agetty
+    _check_ca_certs
+    if grep -qE "^${SERIAL_DEV:-ttyS[0-9]}:" /etc/inittab 2>/dev/null; then
+        echo "  ✓ inittab 串口 getty 激活"; _OK=$((_OK + 1))
+    else
+        echo "  ✗ inittab 无激活串口 getty 行!"; _FAIL=$((_FAIL + 1))
+    fi
 
     # sing-box 仅在 INFRA=sing-box 时检查
     case ",${INFRA:-base}," in *",sing-box,"*)
@@ -48,8 +67,8 @@ check_rootfs() {
     # ---------- 3. openrc 服务启用 ----------
     _check_openrc() { _s_="$1" _rl_="${2:-default}"
         if [ -x "/etc/init.d/$_s_" ]; then
-            if rc-update show 2>/dev/null | grep -q "$_s_"; then
-                echo "  ✓ $_s_"; _OK=$((_OK + 1))
+            if [ -L "/etc/runlevels/$_rl_/$_s_" ]; then
+                echo "  ✓ $_s_ ($_rl_)"; _OK=$((_OK + 1))
             else
                 echo "  ✗ $_s_ init 脚本存在但未在 $_rl_ runlevel 注册"; _FAIL=$((_FAIL + 1))
             fi
@@ -57,7 +76,15 @@ check_rootfs() {
             echo "  ✗ $_s_ init 脚本缺失!"; _FAIL=$((_FAIL + 1))
         fi
     }
-    echo "[check] openrc 服务:"
+    echo "[check] openrc 系统服务:"
+    _check_openrc sysctl boot
+    _check_openrc bootmisc boot
+    _check_openrc syslog
+    _check_openrc crond
+    _check_openrc local
+    _check_openrc networking
+
+    echo "[check] openrc 应用服务:"
     _check_openrc sshd
     _check_openrc chronyd
     _check_openrc nftables
