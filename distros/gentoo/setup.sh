@@ -87,13 +87,13 @@ if [ "${HOST_ARCH:-}" = "aarch64" ] || [ "${HOST_ARCH:-}" = "arm64" ]; then
     _MAKEOPTS_="-j${_NPROC_}"
     _EMERGE_JOBS_="${_NPROC_}"
     # 原生 ARM64：启用 sandbox 保证构建正确性
-    _FEATURES_="getbinpkg -binpkg-verify-signature"
+    _FEATURES_="-getbinpkg"
 else
     _NATIVE_ARM_="0"
     _MAKEOPTS_="-j1"
     _EMERGE_JOBS_="1"
     # QEMU/WSL2：禁用 sandbox（/dev/pts 无法正常挂载，PTY 会耗尽）
-    _FEATURES_="getbinpkg -sandbox -usersandbox -ipc-sandbox -network-sandbox -pid-sandbox -binpkg-verify-signature"
+    _FEATURES_="-getbinpkg -sandbox -usersandbox -ipc-sandbox -network-sandbox -pid-sandbox"
 fi
 
 cat > /etc/portage/make.conf <<EOF
@@ -108,26 +108,23 @@ EMERGE_DEFAULT_OPTS="--jobs=${_EMERGE_JOBS_} --quiet-build"
 
 # FEATURES（原生 ARM64 启用 sandbox，QEMU 下禁用）
 FEATURES="\${FEATURES} ${_FEATURES_}"
-BINPKG_VERIFY_SIGNATURE="no"
 
-# 禁用 binpkg GPG 签名校验（构建环境，非生产系统）
-# 防止 portage 调用 getuto 时因缺少 sec-keys/openpgp-keys-gentoo-release 而报错
-USE="\${USE} -systemd -gnome -gnome-keyring -binpkg-request-signature"
+USE="\${USE} -systemd -gnome -gnome-keyring"
 
-# 匹配 arm64 binhost 的 Python 版本（systemd-utils 的 REQUIRED_USE 要求）
 PYTHON_SINGLE_TARGET="python3_13"
 EOF
 
-# 配置二进制包仓库（arm64-openrc binhost）
-mkdir -p /etc/portage/binrepos.conf
-cat > /etc/portage/binrepos.conf/gentoo.conf <<'EOF'
-[gentoo]
-priority = 9999
-sync-uri = https://distfiles.gentoo.org/releases/arm64/binpackages/23.0/arm64/
-# 关闭 binpkg GPG 签名验证（2025+ Portage 新增的 per-repo 设置）
-# QEMU 环境下 GPG 因 PTY 耗尽（openpty failed）无法运行，必须绕过
-verify-signature = false
-EOF
+# 不使用官方 binhost（arm64 binpackages）
+#
+# 其 GPG 信任链在构建 chroot 里初始化失败：/etc/portage/gnupg 属主异常 +
+# random_seed 写入被拒 → 每个 binpkg 都报 "binpkg signed with a known key of
+# undefined trust" → Portage 内部 FileNotFoundError（.gpkg.tar.partial 重命名
+# 失败）→ emerge 被 SIGTERM（exit 143）。
+#
+# getuto、make.conf 的 -binpkg-verify-signature、binrepos 的
+# verify-signature=false 三种缓解 2026-09 实测均无效。router-image 同款问题
+# 也是靠去掉 binhost 解决的，这里对齐：全部源码编译，换取确定性。
+rm -rf /etc/portage/binrepos.conf /etc/portage/binrepos.conf.old 2>/dev/null || true
 
 # package.mask：阻止不必要的包被二进制包反拉
 mkdir -p /etc/portage/package.mask
@@ -164,30 +161,8 @@ if [ ! -d "/var/db/repos/gentoo" ] || [ -z "$(ls -A /var/db/repos/gentoo 2>/dev/
         GENTOO_MIRRORS="https://distfiles.gentoo.org" emerge --sync
 fi
 
-# ---------- 初始化 Portage GPG 环境（stage3 内）----------
-# stage3 默认不含 /etc/portage/gnupg/，导致 binpkg 签名验证失败
-# 即使 make.conf 设置了 -binpkg-verify-signature，Portage 仍可能尝试验证
-# 这会导致所有二进制包被拒绝，94 个包全部从源码编译，CI 超时
-echo "[setup] 初始化 Portage GPG 环境（stage3 内）..."
-mkdir -p /etc/portage/gnupg
-
-# Portage 默认启用 FEATURES=userpriv，binpkg 验证时 GPG 以 portage 用户身份运行
-# 如果 keyring 属于 root，会导致 "unsafe ownership" 和 "Permission denied"
-if id portage >/dev/null 2>&1; then
-    chown -R portage:portage /etc/portage/gnupg
-fi
-
-# 尝试运行 getuto 初始化信任链（需要 sec-keys/openpgp-keys-gentoo-release）
-# getuto 以 root 运行，完成后需再次确保 portage 用户可读写
-if [ -x /usr/bin/getuto ]; then
-    echo "[setup]   运行 getuto 初始化 GPG 信任链..."
-    getuto 2>/dev/null || echo "[setup]   提示: getuto 失败，继续（已设置 -binpkg-verify-signature）" >&2
-    if id portage >/dev/null 2>&1; then
-        chown -R portage:portage /etc/portage/gnupg
-    fi
-else
-    echo "[setup]   提示: getuto 不可用，已创建 /etc/portage/gnupg/ 目录" >&2
-fi
+# 注：不再初始化 Portage GPG 环境（getuto / chown /etc/portage/gnupg）——
+# 已去掉 binhost，不存在 binpkg 签名验证，这一整块随之失去意义。
 
 # 手动部署 Gentoo release GPG 密钥到 TARGET_ROOTFS
 # 优先从 stage3 复制，避免硬编码日期 URL 过期
