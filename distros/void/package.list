@@ -24,6 +24,8 @@
 [pm] iproute2
 [pm] cloudflared
 [pm] fastfetch
+[pm] podman
+[pm] podman-compose
 
 # ========== sing-box ==========
 [pm] sing-box

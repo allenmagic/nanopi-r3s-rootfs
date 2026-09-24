@@ -1,0 +1,26 @@
+#!/sbin/openrc-run
+
+name=$RC_SVCNAME
+description="WAN 侧管理放行（动态维护 WAN 口直连网段）"
+
+command="/usr/local/bin/wan-mgmt"
+command_args="daemon"
+command_background="yes"
+pidfile="/run/wan-mgmt.pid"
+
+depend() {
+    need net
+    after nftables
+    use logger
+}
+
+stop() {
+    ebegin "Stopping wan-mgmt"
+    start-stop-daemon --stop --quiet --pidfile "${pidfile}" --retry 5
+    eend $?
+
+    ebegin "Clearing WAN mgmt allowlist"
+    nft flush set inet filter wan_mgmt_nets 2>/dev/null || true
+    rm -f /run/wan-mgmt.state
+    eend 0
+}

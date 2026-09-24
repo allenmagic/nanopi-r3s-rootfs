@@ -1,0 +1,17 @@
+services:
+  yunshu:
+    image: ${YUNSHU_IMAGE}
+    container_name: yunshu
+    network_mode: host
+    restart: unless-stopped
+    devices:
+      - /dev/net/tun
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_ADMIN
+    volumes:
+      - ${YUNSHU_STATE_DIR}:/var/lib/yunshu
+    environment:
+      YUNSHU_CORP_CODE: ${YUNSHU_CORP_CODE}
+      YUNSHU_SP_ADDR: ${YUNSHU_SP_ADDR}

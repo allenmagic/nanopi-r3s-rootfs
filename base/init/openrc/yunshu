@@ -1,0 +1,73 @@
+#!/sbin/openrc-run
+
+name=$RC_SVCNAME
+description="YunShu (podman-compose + tun0 routes)"
+
+compose=/etc/yunshu/compose.yaml
+envfile=/etc/yunshu/yunshu.env
+compose_cmd="/usr/bin/podman-compose --in-pod=false --env-file ${envfile} -f ${compose}"
+
+routes_bin=/usr/local/bin/vpn-routes
+routes_pid=/run/yunshu-routes.pid
+dns_conf=/etc/dnsmasq.d/15-vpn-tunnel-dns.conf
+
+depend() {
+    need net
+    use dns logger
+}
+
+_tunnel_dns() {
+    case "$1" in
+        on)
+            [ -n "${VPN_DNS_UPSTREAM:-}" ] || return 0
+            _want_="$(printf 'strict-order\nserver=%s\n' "${VPN_DNS_UPSTREAM}")"
+            [ "$(cat "${dns_conf}" 2>/dev/null)" = "${_want_}" ] && return 0
+            printf '%s\n' "${_want_}" > "${dns_conf}"
+            ;;
+        off)
+            [ -f "${dns_conf}" ] || return 0
+            rm -f "${dns_conf}"
+            ;;
+    esac
+    [ -e /etc/init.d/dnsmasq ] || return 0
+    # SIGHUP(reload) 不重读 conf-dir —— 实测新增 drop-in 后 reload 无效，必须 restart
+    rc-service dnsmasq restart >/dev/null 2>&1 || return 1
+}
+
+start() {
+    ebegin "Starting yunshu"
+    ${compose_cmd} up -d
+    _compose_rc_=$?
+    eend "${_compose_rc_}"
+    [ "${_compose_rc_}" -eq 0 ] || return 1
+
+    set -a
+    [ -f "${envfile}" ] && . "${envfile}"
+    set +a
+
+    ebegin "Tunnel DNS upstream (${VPN_DNS_UPSTREAM:-none})"
+    _tunnel_dns on
+    eend $?
+
+    ebegin "Starting vpn-routes (${VPN_IFACE:-tun0} <- ${VPN_FAKEIP_CIDRS:-198.18.0.0/15})"
+    start-stop-daemon --start --quiet --background --make-pidfile \
+        --pidfile "${routes_pid}" --exec "${routes_bin}" -- daemon
+    eend $?
+}
+
+stop() {
+    ebegin "Reverting tunnel DNS upstream"
+    _tunnel_dns off
+    eend $?
+
+    ebegin "Stopping vpn-routes"
+    start-stop-daemon --stop --quiet --pidfile "${routes_pid}"
+    eend $?
+
+    ebegin "Stopping yunshu"
+    ${compose_cmd} down
+    eend $?
+
+    "${routes_bin}" del 2>/dev/null || true
+    rm -f "${routes_pid}"
+}

@@ -441,6 +441,14 @@ if [ -f "${SCRIPT_DIR}/scripts/network-watchdog.sh" ]; then
     install -m 0755 "${SCRIPT_DIR}/scripts/network-watchdog.sh" "${TARGET_ROOTFS}/usr/local/bin/network-watchdog"
     echo "[setup]   已安装: network-watchdog"
 fi
+if [ -f "${SCRIPT_DIR}/scripts/vpn-routes.sh" ]; then
+    install -m 0755 "${SCRIPT_DIR}/scripts/vpn-routes.sh" "${TARGET_ROOTFS}/usr/local/bin/vpn-routes"
+    echo "[setup]   已安装: vpn-routes"
+fi
+if [ -f "${SCRIPT_DIR}/scripts/wan-mgmt.sh" ]; then
+    install -m 0755 "${SCRIPT_DIR}/scripts/wan-mgmt.sh" "${TARGET_ROOTFS}/usr/local/bin/wan-mgmt"
+    echo "[setup]   已安装: wan-mgmt"
+fi
 
 # 统一路径
 if [ ! -e "${TARGET_ROOTFS}/usr/local/bin/sing-box" ] && [ -x "${TARGET_ROOTFS}/usr/bin/sing-box" ]; then

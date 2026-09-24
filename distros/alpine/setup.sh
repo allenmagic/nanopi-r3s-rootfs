@@ -109,6 +109,14 @@ if [ -f /scripts/network-watchdog.sh ]; then
     install -m 0755 /scripts/network-watchdog.sh /usr/local/bin/network-watchdog
     echo "[setup]   已安装: network-watchdog"
 fi
+if [ -f /scripts/vpn-routes.sh ]; then
+    install -m 0755 /scripts/vpn-routes.sh /usr/local/bin/vpn-routes
+    echo "[setup]   已安装: vpn-routes"
+fi
+if [ -f /scripts/wan-mgmt.sh ]; then
+    install -m 0755 /scripts/wan-mgmt.sh /usr/local/bin/wan-mgmt
+    echo "[setup]   已安装: wan-mgmt"
+fi
 
 # 统一路径
 if [ ! -e /usr/local/bin/sing-box ] && [ -x /usr/bin/sing-box ]; then

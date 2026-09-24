@@ -48,6 +48,7 @@ enable_router_services() {
 
     # 5. 监控服务
     _enable_service network-watchdog
+    _enable_service wan-mgmt
 
     # --- 根据 INFRA 启用组件服务 ---
     case ",${INFRA:-base}," in

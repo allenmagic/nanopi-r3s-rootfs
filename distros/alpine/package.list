@@ -25,6 +25,8 @@
 [pm] nftables
 [pm] tailscale
 [pm] fastfetch
+[pm] podman
+[pm] podman-compose
 [dl@https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64] cloudflared
 
 # ========== sing-box ==========

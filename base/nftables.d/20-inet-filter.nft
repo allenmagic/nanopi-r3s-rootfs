@@ -22,6 +22,12 @@ table inet filter {
         elements = $TUN_IFS_LIST;
     }
 
+    # WAN 侧管理放行网段（运行时由 wan-mgmt 服务填入 WAN 口直连网段）
+    set wan_mgmt_nets {
+        type ipv4_addr;
+        flags interval;
+    }
+
     # ========= 动态黑名单 (分离 IPv4/IPv6) =========
     set flood_blacklist_v4 {
         type ipv4_addr;
@@ -113,10 +119,11 @@ table inet filter {
             nd-neighbor-advert
         } accept;
 
-        # ---------------- SSH 管理 ( LAN / VPN / TUN / Tailscale ) --------------
+        # ---------------- SSH 管理 ( LAN / VPN / TUN / Tailscale / WAN 同网段 ) --------------
         iifname @lan_interfaces tcp dport $SSH_PORT ct state new limit rate 30/minute burst 20 packets accept;
         iifname @tun_interfaces tcp dport $SSH_PORT ct state new limit rate 30/minute burst 20 packets accept;
         iifname @vpn_interfaces tcp dport $SSH_PORT ct state new limit rate 60/minute burst 30 packets accept;
+        iifname @wan_interfaces ip saddr @wan_mgmt_nets tcp dport $SSH_PORT ct state new limit rate 30/minute burst 20 packets accept;
 
         # ----------------  DHCP  -----------------------------
         iifname @lan_interfaces udp dport { 67, 68 } accept;

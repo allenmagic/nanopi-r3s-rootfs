@@ -20,6 +20,8 @@
 [pm] dnsmasq
 [pm] nftables
 [pm] fastfetch
+[pm] podman
+[pm] podman-compose
 [dl@https://pkgs.tailscale.com/stable/tailscale_latest_arm64.tgz] tailscale
 [dl@https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64] cloudflared
 
