@@ -1,18 +1,19 @@
 #!/bin/sh
 
-# WAN LED - 网络活动闪烁
-echo netdev > /sys/class/leds/wan_led/trigger
-echo eth0 > /sys/class/leds/wan_led/device_name
-echo 1 > /sys/class/leds/wan_led/link
-echo 1 > /sys/class/leds/wan_led/tx
-echo 1 > /sys/class/leds/wan_led/rx
+# LED sysfs 名取自 DTB 的 label（实测 green:wan / green:lan）；
+# activity 触发器需内核 CONFIG_LEDS_TRIGGER_NETDEV。
 
-# LAN LED - 网络活动闪烁
-echo netdev > /sys/class/leds/lan_led/trigger
-echo eth1 > /sys/class/leds/lan_led/device_name
-echo 1 > /sys/class/leds/lan_led/link
-echo 1 > /sys/class/leds/lan_led/tx
-echo 1 > /sys/class/leds/lan_led/rx
+set_led() {
+    _led_="$1"; _if_="$2"
+    [ -d "/sys/class/leds/${_led_}" ] || return 0
+    echo netdev > "/sys/class/leds/${_led_}/trigger" 2>/dev/null || return 0
+    echo "$_if_" > "/sys/class/leds/${_led_}/device_name" 2>/dev/null || true
+    for _k_ in link tx rx; do
+        echo 1 > "/sys/class/leds/${_led_}/${_k_}" 2>/dev/null || true
+    done
+}
 
-# SYS LED - 心跳（已默认启用，可选）
-# echo heartbeat > /sys/class/leds/sys_led/trigger
+set_led green:wan eth1
+set_led green:lan eth0
+
+exit 0

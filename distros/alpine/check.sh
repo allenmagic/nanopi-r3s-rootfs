@@ -77,8 +77,14 @@ check_rootfs() {
         fi
     }
     echo "[check] openrc 系统服务:"
+    _check_openrc sysfs sysinit
+    _check_openrc devfs sysinit
+    _check_openrc dmesg sysinit
     _check_openrc sysctl boot
     _check_openrc bootmisc boot
+    _check_openrc loopback boot
+    _check_openrc hostname boot
+    _check_openrc hwdrivers boot
     _check_openrc syslog
     _check_openrc crond
     _check_openrc local

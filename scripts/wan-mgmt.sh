@@ -12,7 +12,7 @@ _wan_iface() {
     fi
     _i_="$(sed -n 's/^define[[:space:]]\+WAN[[:space:]]*=[[:space:]]*//p' \
             /etc/nftables.d/00-inet-vars.nft 2>/dev/null | head -n1)"
-    printf '%s\n' "${_i_:-eth0}"
+    printf '%s\n' "${_i_:-eth1}"
 }
 
 _want() {

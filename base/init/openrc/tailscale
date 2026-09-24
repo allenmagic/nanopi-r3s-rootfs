@@ -3,7 +3,11 @@
 name=$RC_SVCNAME
 description="Tailscale agent"
 
-command="/usr/local/bin/tailscaled"
+# 路径随安装方式不同：包管理器装在 /usr/sbin|/usr/bin，[dl@] tarball 在 /usr/local/bin
+for _p_ in /usr/sbin/tailscaled /usr/bin/tailscaled /usr/local/bin/tailscaled; do
+    [ -x "$_p_" ] && { command="$_p_"; break; }
+done
+command="${command:-/usr/local/bin/tailscaled}"
 command_background="yes"
 pidfile="/var/run/$name.pid"
 

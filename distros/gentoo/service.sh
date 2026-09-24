@@ -25,9 +25,9 @@ enable_router_services() {
     # 从 network.env 读取接口配置
     . /network.env 2>/dev/null || true
     _enable_service net.lo boot
-    _enable_service "net.${WAN_IFACE:-eth0}"
+    _enable_service "net.${WAN_IFACE:-eth1}"
     # LAN 接口：仅在设置且不同于 WAN 时才启用独立服务
-    if [ -n "${LAN_IFACE:-}" ] && [ "${LAN_IFACE}" != "${WAN_IFACE:-eth0}" ]; then
+    if [ -n "${LAN_IFACE:-}" ] && [ "${LAN_IFACE}" != "${WAN_IFACE:-eth1}" ]; then
         _enable_service "net.${LAN_IFACE}"
     fi
 

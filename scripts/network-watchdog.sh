@@ -15,8 +15,8 @@
 set -e
 
 # ==================== 配置 ====================
-WAN_IF="${WAN_IF:-eth0}"
-LAN_IF="${LAN_IF:-eth1}"
+WAN_IF="${WAN_IF:-eth1}"
+LAN_IF="${LAN_IF:-eth0}"
 LAN_IP="${LAN_IP:-192.168.8.1}"
 
 PING_TARGET="223.5.5.5"
