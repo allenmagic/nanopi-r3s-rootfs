@@ -136,8 +136,8 @@ sys-apps/systemd
 sys-apps/gentoo-systemd-integration
 # udev-init-scripts（源码 404，且路由器用 busybox mdev 无需 udev init）
 sys-fs/udev-init-scripts
-# shared-mime-info（桌面 MIME 数据库，路由器无用）
-x11-misc/shared-mime-info
+# 注：不再 mask x11-misc/shared-mime-info —— glib 硬依赖它（无 USE flag 可摘），
+# podman 链 conmon → glib 会因此解析失败
 EOF
 # package.use 配置（处理目录情况）
 if [ -d "/etc/portage/package.use" ]; then
