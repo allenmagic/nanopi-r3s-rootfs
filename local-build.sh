@@ -83,6 +83,12 @@ fi
 _avail_g="$(df -Pk "${REPO_ROOT}" | awk 'NR==2 {print int($4/1048576)}')"
 [ "${_avail_g}" -ge 15 ] || die "磁盘余量不足（${_avail_g}G < 15G）"
 
+# gentoo 官方源可能只解析出 IPv6 而本机无出口；提前说，别等下载到一半才报错
+if [ "${DISTRO}" = "gentoo" ] && [ "${MIRROR}" = "default" ] && \
+   ! curl -s -o /dev/null --max-time 8 "https://distfiles.gentoo.org/" 2>/dev/null; then
+    warn "distfiles.gentoo.org 不可达 —— 换国内镜像重跑：./local-build.sh --mirror tuna"
+fi
+
 if [ -f "${REPO_ROOT}/.env" ]; then
     say "加载 ${REPO_ROOT}/.env"
 else

@@ -173,11 +173,12 @@ EOF
 fi
 
 # 同步 Portage tree（如果还没有）
-# 注意：emerge-webrsync 下载 snapshot 时临时用官方源，避免镜像 snapshots 不完整
+# 先用配置的镜像（官方源解析出来可能只有 IPv6，部分网络不可达），失败退回官方源
 if [ ! -d "/var/db/repos/gentoo" ] || [ -z "$(ls -A /var/db/repos/gentoo 2>/dev/null)" ]; then
-    echo "[setup] 同步 Portage tree（使用官方源）..."
-    GENTOO_MIRRORS="https://distfiles.gentoo.org" emerge-webrsync || \
-        GENTOO_MIRRORS="https://distfiles.gentoo.org" emerge --sync
+    echo "[setup] 同步 Portage tree（镜像 ${GENTOO_MIRROR_BASE}）..."
+    GENTOO_MIRRORS="${GENTOO_MIRROR_BASE}" emerge-webrsync || \
+        GENTOO_MIRRORS="https://distfiles.gentoo.org" emerge-webrsync || \
+        GENTOO_MIRRORS="${GENTOO_MIRROR_BASE}" emerge --sync
 fi
 
 # 注：不再初始化 Portage GPG 环境（getuto / chown /etc/portage/gnupg）——
