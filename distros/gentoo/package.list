@@ -20,6 +20,9 @@
 [pm] sys-apps/kmod
 [pm] sys-apps/iproute2
 [pm] sys-apps/util-linux
+# 首启扩容：growpart 改分区 + resize2fs 扩 fs
+[pm] sys-fs/e2fsprogs
+[pm] sys-fs/growpart
 [pm] sys-libs/timezone-data
 [pm] sys-apps/openrc
 [pm] sys-process/procps

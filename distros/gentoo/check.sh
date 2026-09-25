@@ -35,6 +35,10 @@ check_rootfs() {
     _check_bin tailscaled /usr/local/bin/tailscaled
     _check_bin cloudflared /usr/local/bin/cloudflared
     _check_bin network-watchdog /usr/local/bin/network-watchdog
+    _check_bin lan-mac  /usr/local/bin/lan-mac
+    _check_bin rootfs-resize /usr/local/bin/rootfs-resize
+    _check_bin resize2fs /sbin/resize2fs /usr/sbin/resize2fs
+    _check_bin growpart /usr/bin/growpart /bin/growpart
     _check_bin agetty   /sbin/agetty /usr/sbin/agetty
     _check_ca_certs
     if grep -qE "::respawn:/sbin/agetty.*[[:space:]]${SERIAL_DEV:-ttyS[0-9]}([[:space:]]|$)" "${TARGET_ROOTFS}/etc/inittab" 2>/dev/null; then
@@ -80,6 +84,20 @@ check_rootfs() {
     _check_openrc syslog default
     _check_openrc crond default
 
+    echo "[check] openrc 网络服务:"
+    # 漏注册则开机无网，构建却全绿
+    . /network.env 2>/dev/null || true
+    _check_openrc net.lo boot
+    _check_openrc "net.${WAN_IFACE:-eth0}" default
+    _check_openrc "net.${LAN_IFACE:-eth1}" default
+    # 未排除 plug 时 netifrc 用 ifplugd 把接口 background 掉
+    if grep -q '^modules="!plug"' "${TARGET_ROOTFS}/etc/conf.d/net" 2>/dev/null; then
+        echo "  ✓ conf.d/net 排除 ifplugd"; _OK=$((_OK + 1))
+    else
+        echo "  ✗ conf.d/net 未排除 ifplugd（接口会 background 后停摆）"; _FAIL=$((_FAIL + 1))
+    fi
+    _check_openrc cgroups sysinit
+
     echo "[check] openrc 应用服务:"
     _check_openrc sshd default
     _check_openrc busybox-ntpd default
@@ -88,6 +106,7 @@ check_rootfs() {
     _check_openrc tailscale default
     _check_openrc cloudflared default
     _check_openrc network-watchdog
+    _check_openrc yunshu default
 
     # sing-box 仅在 INFRA=sing-box 时检查
     case ",${INFRA:-base}," in *",sing-box,"*)
@@ -103,6 +122,13 @@ check_rootfs() {
             echo "  ✗ $_s_ init 脚本缺失!"; _FAIL=$((_FAIL + 1))
         fi
     done
+
+    # ---------- 5. cgroup v2 ----------
+    if grep -q '^rc_cgroup_mode="unified"' "${TARGET_ROOTFS}/etc/rc.conf" 2>/dev/null; then
+        echo "  ✓ rc_cgroup_mode=unified"; _OK=$((_OK + 1))
+    else
+        echo "  ✗ rc_cgroup_mode 未设 unified（podman 看不到控制器）"; _FAIL=$((_FAIL + 1))
+    fi
 
     # ---------- 结果 ----------
     _TOTAL=$((_OK + _FAIL))

@@ -11,9 +11,18 @@ configure_network() {
     _replace_placeholders
 
     # netifrc 配置：WAN DHCP + LAN static
+    # modules="!plug"：否则 netifrc 用 busybox 的 ifplugd 把接口 background 掉，永久停摆
+    # preup：LAN 口无 EEPROM，MAC 每次开机随机，配 IP 前先钉住
     cat > "${TARGET_ROOTFS}/etc/conf.d/net" << EOF
 config_${WAN_IFACE}="dhcp"
 config_${LAN_IFACE}="${LAN_IP}/${LAN_CIDR}"
+modules="!plug"
+
+preup() {
+    [ "\${IFACE}" = "${LAN_IFACE}" ] || return 0
+    LAN_IFACE="\${IFACE}" /usr/local/bin/lan-mac
+    return 0
+}
 EOF
 
     # 激活 netifrc 接口（符号链接 /etc/init.d/net.lo -> net.<iface>）

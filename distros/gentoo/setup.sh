@@ -424,6 +424,14 @@ if [ -f "${SCRIPT_DIR}/scripts/wan-mgmt.sh" ]; then
     install -m 0755 "${SCRIPT_DIR}/scripts/wan-mgmt.sh" "${TARGET_ROOTFS}/usr/local/bin/wan-mgmt"
     echo "[setup]   已安装: wan-mgmt"
 fi
+if [ -f "${SCRIPT_DIR}/scripts/lan-mac.sh" ]; then
+    install -m 0755 "${SCRIPT_DIR}/scripts/lan-mac.sh" "${TARGET_ROOTFS}/usr/local/bin/lan-mac"
+    echo "[setup]   已安装: lan-mac"
+fi
+if [ -f "${SCRIPT_DIR}/scripts/rootfs-resize.sh" ]; then
+    install -m 0755 "${SCRIPT_DIR}/scripts/rootfs-resize.sh" "${TARGET_ROOTFS}/usr/local/bin/rootfs-resize"
+    echo "[setup]   已安装: rootfs-resize"
+fi
 
 # 统一路径
 if [ ! -e "${TARGET_ROOTFS}/usr/local/bin/sing-box" ] && [ -x "${TARGET_ROOTFS}/usr/bin/sing-box" ]; then
@@ -498,6 +506,12 @@ l0:0:wait:/sbin/openrc shutdown
 l6:6:wait:/sbin/openrc reboot
 S2::respawn:/sbin/agetty ${SERIAL_BAUD} ${SERIAL_DEV} vt100
 EOF
+
+# cgroup v2：默认 hybrid，podman 认不到 v2 控制器
+echo "[setup] 启用 cgroup v2 (unified) ..."
+sed -i 's|^#rc_cgroup_mode="unified"|rc_cgroup_mode="unified"|' "${TARGET_ROOTFS}/etc/rc.conf"
+grep -q '^rc_cgroup_mode=' "${TARGET_ROOTFS}/etc/rc.conf" || \
+    echo 'rc_cgroup_mode="unified"' >> "${TARGET_ROOTFS}/etc/rc.conf"
 
 echo "[setup] 启用基础服务 ..."
 # OpenRC 服务启用需要在目标 rootfs 的 /etc/runlevels/ 下操作
