@@ -43,10 +43,16 @@ check_rootfs() {
     _check_bin growpart /usr/sbin/growpart /usr/bin/growpart
     _check_bin agetty   /sbin/agetty /usr/sbin/agetty
     _check_ca_certs
-    if grep -qE "::respawn:/sbin/agetty.*[[:space:]]${SERIAL_DEV:-ttyS[0-9]}([[:space:]]|$)" "${TARGET_ROOTFS}/etc/inittab" 2>/dev/null; then
+    if grep -qE ":respawn:/sbin/agetty.*[[:space:]]${SERIAL_DEV:-ttyS[0-9]}([[:space:]]|$)" "${TARGET_ROOTFS}/etc/inittab" 2>/dev/null; then
         echo "  ✓ inittab 串口 getty 激活"; _OK=$((_OK + 1))
     else
         echo "  ✗ inittab 无激活串口 getty 行!"; _FAIL=$((_FAIL + 1))
+    fi
+    # l6 只负责停服务，真正发起重启的是 l6r；漏了它会卡在「根只读、内核不重启」
+    if grep -qE "^l6r:6:.*reboot" "${TARGET_ROOTFS}/etc/inittab" 2>/dev/null; then
+        echo "  ✓ inittab 有 l6r 重启行"; _OK=$((_OK + 1))
+    else
+        echo "  ✗ inittab 缺 l6r 行 —— reboot 会变成 halt"; _FAIL=$((_FAIL + 1))
     fi
 
     # sing-box 仅在 INFRA=sing-box 时检查

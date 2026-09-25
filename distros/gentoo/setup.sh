@@ -528,17 +528,22 @@ else
 fi
 
 # 确保串口控制台 — 直接覆盖（不用 stage3 自带的 inittab）
-# id 字段必须 ≤4 字符且**唯一**（sysvinit 限制）；S2 = serial-2（ttyS2）。
-# 三行都用 si 会让 sysvinit 丢弃 openrc boot / default 两条 —— runlevel
-# 迁移不执行，default 级服务（sshd/dnsmasq/nftables…）根本不启动。
+# 以 OpenRC 自带的 /usr/share/openrc/support/sysvinit/inittab 为基准，只把控制台换成串口。
+# id 字段必须 ≤4 字符且唯一（sysvinit 限制）；S2 = serial-2（ttyS2）。
+#   l6 的 openrc reboot 只负责停服务 + 根 remount 只读，**真正的重启由 l6r 发起**；
+#   漏掉 l6r 会停在「服务全停、根只读、内核不重启」的半死状态（l0s 同理管 halt）。
 cat > "${TARGET_ROOTFS}/etc/inittab" <<EOF
 id:3:initdefault:
 si::sysinit:/sbin/openrc sysinit
 rc::bootwait:/sbin/openrc boot
-d3::wait:/sbin/openrc default
+d3:3:wait:/sbin/openrc default
+l0u:0:wait:/sbin/telinit u
 l0:0:wait:/sbin/openrc shutdown
+l0s:0:wait:/sbin/halt.sh
+l6u:6:wait:/sbin/telinit u
 l6:6:wait:/sbin/openrc reboot
-S2::respawn:/sbin/agetty ${SERIAL_BAUD} ${SERIAL_DEV} vt100
+l6r:6:wait:/sbin/reboot -d
+S2:12345:respawn:/sbin/agetty ${SERIAL_BAUD} ${SERIAL_DEV} vt100
 EOF
 
 # cgroup v2：默认 hybrid，podman 认不到 v2 控制器
