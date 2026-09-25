@@ -10,12 +10,14 @@ enable_router_services() {
     # minirootfs 不带 runlevel 注册，这些标准服务必须显式启用（漏 sysfs → /sys 未挂载）
     _enable_service sysfs sysinit
     _enable_service devfs sysinit
+    _enable_service dev sysinit
     _enable_service dmesg sysinit
 
     _enable_service bootmisc boot
     _enable_service loopback boot
     _enable_service hostname boot
     _enable_service hwdrivers boot
+    _enable_service cgroups boot
     _enable_service syslog
     _enable_service crond
 

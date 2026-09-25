@@ -19,6 +19,8 @@
 [pm] iproute2
 [pm] rsync
 [pm] util-linux
+[pm] e2fsprogs-extra
+[pm] cloud-utils-growpart
 [pm] tzdata
 [pm] busybox-openrc
 [pm] dnsmasq

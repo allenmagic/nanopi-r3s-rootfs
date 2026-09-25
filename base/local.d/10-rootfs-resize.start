@@ -1,0 +1,4 @@
+#!/bin/sh
+# 把根分区扩到 SD 卡实际大小（幂等，已占满则立即返回）
+[ -x /usr/local/bin/rootfs-resize ] && /usr/local/bin/rootfs-resize
+exit 0

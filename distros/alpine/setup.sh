@@ -121,6 +121,10 @@ if [ -f /scripts/lan-mac.sh ]; then
     install -m 0755 /scripts/lan-mac.sh /usr/local/bin/lan-mac
     echo "[setup]   已安装: lan-mac"
 fi
+if [ -f /scripts/rootfs-resize.sh ]; then
+    install -m 0755 /scripts/rootfs-resize.sh /usr/local/bin/rootfs-resize
+    echo "[setup]   已安装: rootfs-resize"
+fi
 
 # 统一路径
 if [ ! -e /usr/local/bin/sing-box ] && [ -x /usr/bin/sing-box ]; then
@@ -145,6 +149,13 @@ echo "[setup] 设置默认 shell 为 bash ..."
 grep -qx '/bin/bash' /etc/shells 2>/dev/null || echo '/bin/bash' >> /etc/shells
 chsh -s /bin/bash root 2>/dev/null || \
     sed -i '/^root:/ s|:[^:]*$|:/bin/bash|' /etc/passwd
+
+# cgroup v2（unified）。不设的话 OpenRC 什么都不挂，/sys/fs/cgroup 为空，
+# podman 报 cgroupControllers: []。配合 service.sh 启用 cgroups 服务。
+echo "[setup] 启用 cgroup v2 (unified) ..."
+sed -i 's|^#rc_cgroup_mode="unified"|rc_cgroup_mode="unified"|' /etc/rc.conf
+grep -q '^rc_cgroup_mode=' /etc/rc.conf || \
+    echo 'rc_cgroup_mode="unified"' >> /etc/rc.conf
 
 echo "[setup] 设置主机名：${HOSTNAME_VAL}"
 echo "${HOSTNAME_VAL}" > /etc/hostname

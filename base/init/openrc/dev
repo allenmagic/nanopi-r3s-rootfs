@@ -1,0 +1,18 @@
+#!/sbin/openrc-run
+#
+# dev 服务桩。
+#
+# openrc 0.63 移除了 dev 服务，但它自己的 hwdrivers/machine-id/modloop 和
+# busybox-openrc 的 acpid/watchdog 仍写着 `need dev` —— 上游回归。后果是依赖
+# 缓存每轮都报 "needs non existent service 'dev'"，且 hwdrivers（boot runlevel）
+# 直接 ERROR 起不来。
+#
+# 补个桩比删包里的 init 脚本稳：删了会被 apk 升级覆盖回去。
+# /dev 的挂载实际由 sysinit 的 devfs 负责，这里只需满足依赖。
+#
+
+description="dev service stub (openrc 0.63 removed it, see file header)"
+
+depend() {
+    need devfs
+}
