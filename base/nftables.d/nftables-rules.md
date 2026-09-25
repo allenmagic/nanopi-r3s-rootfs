@@ -29,7 +29,6 @@
 | 端口 | `DNS_PORT` | `53` |
 | 地址 | `WG_IP` | `10.10.10.2` |
 | 地址 | `ROUTER_LAN_IP` | `192.168.8.1` |
-| 地址 | `PROXY_SERVER_IP` | `192.168.8.180` |
 | 网段 | `LAN_NET` | `192.168.8.0/24` |
 | 网段 | `TS_NET` | `100.64.0.0/10` |
 | 网段 | `WG_NET` | `10.10.10.0/24` |
@@ -38,14 +37,14 @@
 | 集合 | `LAN_IFS_LIST` | `{ eth1 }` |
 | 集合 | `VPN_IFS_LIST` | `{ wg0, ts0 }` |
 | 集合 | `TUN_IFS_LIST` | `{ tun0 }` |
-| 集合 | `PROXY_SETS` | `{ 192.168.8.180 }` |
 | 路由表 | `ROUTE_TABLE_ID` | `100` |
 | 私网 | `PRIVATE_NETS` | `10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10` |
 
 说明：
 
 - 当前默认接口假设仍然是 `WAN=eth0`、`LAN=eth1`。
-- `PROXY_SETS`、`ROUTE_TABLE_ID`、`PRIVATE_NETS` 在本目录的 NAT/Filter 文件中暂未直接使用。
+- `ROUTE_TABLE_ID`、`PRIVATE_NETS` 在本目录的 NAT/Filter 文件中暂未直接使用。
+- 代理服务器 `192.168.8.180` 已下线，`PROXY_SERVER_IP` / `PROXY_SETS` 两个变量及其在 PREROUTING 里的防回环规则已一并删除。
 
 ## 2. NAT 规则
 
@@ -198,6 +197,7 @@
 
 | 入接口/源 | 出接口 | 含义 |
 | --- | --- | --- |
+| `LAN` | `WAN` | 内网直连出网 |
 | `LAN` | `TUN` | 内网流量进入透明代理隧道 |
 | `TUN` | `WAN` | 代理后的流量继续出网 |
 | `TUN` | `LAN` | 允许隧道侧回到内网 |
@@ -208,14 +208,9 @@
 
 ### FORWARD 链特点
 
-- 没有显式的 `LAN -> WAN` 放行规则。
+- `LAN -> WAN` 已放行（2026-09-25 补回；此前缺失，LAN 转发会全部落到 `FORWARD_DROP`）。
 - 没有显式的 `VPN -> WAN` 放行规则。
-- 当前设计更像是：
-  - LAN 流量优先导入 `TUN`
-  - 由 `TUN` 继续出 WAN
-  - VPN 主要用于访问内网，而不是直接借道 WAN
-
-这意味着是否能正常上网，还依赖更上层的策略路由、透明代理和接口流向设计。
+- 同时保留 `TUN`/`VPN` 相关规则，供透明代理与隧道模型使用。
 
 ### FORWARD 默认处理
 
@@ -248,7 +243,7 @@
 2. 内网、VPN、透明代理接口对路由器本机访问较宽松。
 3. 出 WAN 的 IPv4 流量统一做 `masquerade`。
 4. VPN 访问 LAN 时额外做一次 IPv4 `masquerade`，简化回程路径。
-5. 转发链偏向“LAN -> TUN -> WAN”的代理出口模型，而不是传统“LAN -> WAN”直连模型。
+5. 转发链同时支持 `LAN -> WAN` 直连与“LAN -> TUN -> WAN”代理出口两种模型。
 6. 具备基础 SYN Flood 限流、动态黑名单、日志记录和流量卸载能力。
 
 ## 8. 需要注意的点
@@ -259,4 +254,3 @@
 2. `flowtable f` 仅绑定 `{ eth0, eth1 }`，不包含 `wg0`、`ts0`、`tun0`。
 3. `VPN_IFS_LIST` 包含 `wg0` 和 `ts0`，同时又单独通过 `TS_NET` 允许部分访问，存在“按接口”和“按地址段”混用的设计。
 4. `input` 链末尾存在 `iifname @vpn_interfaces accept`、`iifname @tun_interfaces accept`、`iifname @lan_interfaces accept`，因此这些入口到本机的大部分流量都会被放行。
-5. 若未来要支持普通 LAN 直连上网，需要确认是否应补充 `LAN -> WAN` 转发规则，或由其他策略路由规则接管。

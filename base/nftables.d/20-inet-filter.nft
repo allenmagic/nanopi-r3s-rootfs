@@ -176,6 +176,9 @@ table inet filter {
         # -------------------- MSS Clamping ---------------------
         tcp flags syn tcp option maxseg size set rt mtu;
 
+        # --------------------- LAN -> WAN 转发 -----------------
+        iifname @lan_interfaces oifname @wan_interfaces accept;
+
         # --------------------- LAN -> TUN 转发 -----------------
         iifname @lan_interfaces oifname @tun_interfaces accept;
 
