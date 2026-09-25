@@ -40,6 +40,9 @@ enable_router_services() {
     _enable_service network-watchdog
     _enable_service wan-mgmt
 
+    # 6. 容器服务
+    _enable_service yunshu
+
     # --- 根据 INFRA 启用组件服务 ---
     case ",${INFRA:-base}," in
         *",sing-box,"*)
