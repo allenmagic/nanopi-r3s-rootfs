@@ -117,6 +117,10 @@ if [ -f /scripts/wan-mgmt.sh ]; then
     install -m 0755 /scripts/wan-mgmt.sh /usr/local/bin/wan-mgmt
     echo "[setup]   已安装: wan-mgmt"
 fi
+if [ -f /scripts/lan-mac.sh ]; then
+    install -m 0755 /scripts/lan-mac.sh /usr/local/bin/lan-mac
+    echo "[setup]   已安装: lan-mac"
+fi
 
 # 统一路径
 if [ ! -e /usr/local/bin/sing-box ] && [ -x /usr/bin/sing-box ]; then

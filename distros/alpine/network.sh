@@ -19,6 +19,7 @@ iface ${WAN_IFACE} inet dhcp
 
 auto ${LAN_IFACE}
 iface ${LAN_IFACE} inet static
+    pre-up /usr/local/bin/lan-mac
     address ${LAN_IP}
     netmask ${LAN_NETMASK}
 EOF

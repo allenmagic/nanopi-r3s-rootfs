@@ -13,7 +13,7 @@ set_led() {
     done
 }
 
-set_led green:wan eth1
-set_led green:lan eth0
+set_led green:wan eth0
+set_led green:lan eth1
 
 exit 0
