@@ -96,6 +96,13 @@ else
     _FEATURES_="-getbinpkg -sandbox -usersandbox -ipc-sandbox -network-sandbox -pid-sandbox"
 fi
 
+# 并行度由 build-local.sh 指定（绕开 QEMU 的 -j1；CI 不传，走上面的架构默认）
+if [ -n "${MAKE_JOBS:-}" ]; then
+    _MAKEOPTS_="-j${MAKE_JOBS}"
+    _EMERGE_JOBS_="${MAKE_JOBS}"
+    echo "[setup] 并行度: -j${MAKE_JOBS}"
+fi
+
 cat > /etc/portage/make.conf <<EOF
 # Gentoo 镜像源（distfiles 下载）
 # 注意：不要追加 /distfiles，ebuild SRC_URI 中 mirror://gentoo/ 已自动拼接该路径
@@ -113,6 +120,18 @@ USE="\${USE} -systemd -gnome -gnome-keyring"
 
 PYTHON_SINGLE_TARGET="python3_13"
 EOF
+
+# binpkg 落 PKGDIR，二次构建直接复用不必重编译（build-local.sh 用；CI 不传）
+if [ -n "${PKGDIR:-}" ]; then
+    mkdir -p "${PKGDIR}"
+    cat >> /etc/portage/make.conf <<EOF
+
+PKGDIR="${PKGDIR}"
+FEATURES="\${FEATURES} buildpkg"
+EMERGE_DEFAULT_OPTS="\${EMERGE_DEFAULT_OPTS} --usepkg=y --buildpkg=y"
+EOF
+    echo "[setup] binpkg 复用: PKGDIR=${PKGDIR}"
+fi
 
 # 不使用官方 binhost（arm64 binpackages）
 #

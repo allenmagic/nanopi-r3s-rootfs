@@ -42,6 +42,13 @@ HOSTNAME_VAL="${HOSTNAME_VAL:-nanopi-r3s-gentoo}"
 SETUP_SCRIPT="${SCRIPT_DIR}/setup.sh"
 PACK="${PACK:-0}"
 
+# --- 本地迭代开关（build-local.sh 用；CI 全不传，行为与原来一致）---
+# KEEP_STAGE3=1 复用已有 stage3（portage tree / distfiles / PKGDIR 都留在里面）
+KEEP_STAGE3="${KEEP_STAGE3:-0}"
+# MAKE_JOBS 显式并行度；PKGDIR 非空则启用 binpkg 复用
+MAKE_JOBS="${MAKE_JOBS:-}"
+PKGDIR="${PKGDIR:-}"
+
 # ---------- 镜像源映射 ----------
 declare -A MIRRORS
 MIRRORS["default"]="https://distfiles.gentoo.org/releases/${GENTOO_ARCH}/autobuilds"
@@ -160,6 +167,10 @@ fi
 
 # ---------- 第二步：解压 stage3 到构建环境 ----------
 echo "[gentoo] 2. 解压 stage3 到 ${STAGE3_DIR} ..."
+# KEEP_STAGE3 复用已有 stage3：里面的 portage tree / distfiles / PKGDIR 全留着
+if [ "${KEEP_STAGE3}" = "1" ] && [ -x "${STAGE3_DIR}/usr/bin/emerge" ]; then
+    echo "[gentoo]   复用已有 stage3（KEEP_STAGE3=1），跳过解压"
+else
 rm -rf "${STAGE3_DIR}"
 mkdir -p "${STAGE3_DIR}"
 # 先做完整性校验（失败则清缓存重试）
@@ -173,6 +184,7 @@ if ! tar xpf "${TARBALL}" --numeric-owner --xattrs-include='*.*' --same-owner -C
     rm -rf "${STAGE3_DIR}"
     mkdir -p "${STAGE3_DIR}"
     tar xpf "${TARBALL}" -C "${STAGE3_DIR}"
+fi
 fi
 
 [ -x "${STAGE3_DIR}/bin/busybox" ] || [ -x "${STAGE3_DIR}/usr/bin/emerge" ] || { echo "stage3 解压异常" >&2; exit 1; }
@@ -207,6 +219,8 @@ chroot_run "${STAGE3_DIR}" /usr/bin/env \
     TARGET_ROOTFS="/gentoo-rootfs" \
     GENTOO_MIRROR_BASE="${GENTOO_MIRROR_BASE}" \
     HOST_ARCH="${HOST_ARCH}" \
+    MAKE_JOBS="${MAKE_JOBS}" \
+    PKGDIR="${PKGDIR}" \
     SCRIPT_DIR="/" \
     /bin/sh /setup.sh
 
