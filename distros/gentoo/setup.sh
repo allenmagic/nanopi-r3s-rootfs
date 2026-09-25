@@ -286,6 +286,29 @@ if [ -f "${_PKG_LIST_}" ]; then
     done < "${_PKG_LIST_}"
 fi
 
+# 去掉被真身遮住的 busybox 软链：make-symlinks 把 applet 铺到 /sbin 等目录，而 usr-merge 后
+# portage 的包装在 /bin，PATH 里 /sbin 在前 → `ip` 一直用的是 busybox 精简版（不认 -br）。
+# 只删「另有同名真身」的软链，其余 applet 原样保留。
+echo "[setup] 去掉被真身遮住的 busybox 软链 ..."
+_shadow_=0
+for _d_ in bin usr/bin sbin usr/sbin; do
+    for _l_ in "${TARGET_ROOTFS}/${_d_}"/*; do
+        [ -L "${_l_}" ] || continue
+        case "$(readlink "${_l_}")" in */busybox|busybox) ;; *) continue ;; esac
+        _n_="${_l_##*/}"
+        for _e_ in bin usr/bin sbin usr/sbin; do
+            [ "${_e_}" = "${_d_}" ] && continue
+            _r_="${TARGET_ROOTFS}/${_e_}/${_n_}"
+            if [ -f "${_r_}" ] && [ ! -L "${_r_}" ]; then
+                rm -f "${_l_}"
+                echo "[setup]   /${_d_}/${_n_} 让位给 /${_e_}/${_n_}"
+                _shadow_=$((_shadow_ + 1))
+                break
+            fi
+        done
+    done
+done
+echo "[setup]   共去掉 ${_shadow_} 个"
 
 # ============================================================
 #  2.5. busybox ntpd OpenRC 服务

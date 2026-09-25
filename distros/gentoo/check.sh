@@ -125,7 +125,15 @@ check_rootfs() {
         fi
     done
 
-    # ---------- 5. cgroup v2 ----------
+    # ---------- 5. busybox 软链没遮住真身 ----------
+    case "$(readlink "${TARGET_ROOTFS}/sbin/ip" 2>/dev/null)" in
+        *busybox)
+            echo "  ✗ /sbin/ip 仍是 busybox 软链（遮蔽 iproute2 的 /bin/ip）"; _FAIL=$((_FAIL + 1)) ;;
+        *)
+            echo "  ✓ /sbin/ip 未被 busybox 遮蔽"; _OK=$((_OK + 1)) ;;
+    esac
+
+    # ---------- 6. cgroup v2 ----------
     if grep -q '^rc_cgroup_mode="unified"' "${TARGET_ROOTFS}/etc/rc.conf" 2>/dev/null; then
         echo "  ✓ rc_cgroup_mode=unified"; _OK=$((_OK + 1))
     else

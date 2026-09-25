@@ -12,18 +12,11 @@ _mac="02:$(echo "$_sn" | cut -c1-2):$(echo "$_sn" | cut -c3-4):$(echo "$_sn" | c
 
 [ "$(cat "/sys/class/net/${IFACE}/address")" = "$_mac" ] && exit 0
 
-# 在 ifupdown 的 pre-up 阶段调用时接口本就是 down 的，改完不主动 up，
-# 交回给调用方；独立运行时才恢复原状态。
-# pre-up 阶段接口本就是 down，别多发 down/up 触发服务重载
-_was_up=0
-ip link show "$IFACE" 2>/dev/null | grep -q "state UP" && _was_up=1
-
-if [ "$_was_up" -eq 1 ]; then
+# up 着的接口改 MAC 报 EBUSY 得先 down；直接试一次比判断 ip 是 busybox 还是 iproute2 稳
+if ! ip link set "$IFACE" address "$_mac" 2>/dev/null; then
     ip link set "$IFACE" down
     ip link set "$IFACE" address "$_mac"
     ip link set "$IFACE" up
-else
-    ip link set "$IFACE" address "$_mac"
 fi
 
 echo "[lan-mac] ${IFACE} -> ${_mac}"
