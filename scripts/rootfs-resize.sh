@@ -4,6 +4,10 @@
 
 set -e
 
+# openrc 的 local 服务 PATH 不含 sbin，而 gentoo 的 growpart 装在 /usr/sbin
+PATH="/usr/local/sbin:/usr/sbin:/sbin:${PATH}"
+export PATH
+
 # 必须传 /proc/mounts 里的原名：resize2fs 靠字符串比对判断是否已挂载
 _root="$(findmnt -no SOURCE / 2>/dev/null)"
 [ -n "$_root" ] || _root=/dev/root

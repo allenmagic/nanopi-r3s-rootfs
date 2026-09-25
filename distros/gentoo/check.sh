@@ -40,7 +40,7 @@ check_rootfs() {
     _check_bin lan-mac  /usr/local/bin/lan-mac
     _check_bin rootfs-resize /usr/local/bin/rootfs-resize
     _check_bin resize2fs /sbin/resize2fs /usr/sbin/resize2fs
-    _check_bin growpart /usr/bin/growpart /bin/growpart
+    _check_bin growpart /usr/sbin/growpart /usr/bin/growpart
     _check_bin agetty   /sbin/agetty /usr/sbin/agetty
     _check_ca_certs
     if grep -qE "::respawn:/sbin/agetty.*[[:space:]]${SERIAL_DEV:-ttyS[0-9]}([[:space:]]|$)" "${TARGET_ROOTFS}/etc/inittab" 2>/dev/null; then
