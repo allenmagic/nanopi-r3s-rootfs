@@ -20,11 +20,17 @@ _mac="02:$(echo "$_sn" | cut -c1-2):$(echo "$_sn" | cut -c3-4):$(echo "$_sn" | c
 
 # 在 ifupdown 的 pre-up 阶段调用时接口本就是 down 的，改完不主动 up，
 # 交回给调用方；独立运行时才恢复原状态。
+# 在 ifupdown 的 pre-up 阶段调用时接口本就是 down 的，此时只改地址、不碰链路，
+# 避免多余的 down/up 触发 netlink 事件让 nftables/dnsmasq/cloudflared 白重启一遍。
 _was_up=0
 ip link show "$IFACE" 2>/dev/null | grep -q "state UP" && _was_up=1
 
-ip link set "$IFACE" down
-ip link set "$IFACE" address "$_mac"
-[ "$_was_up" -eq 1 ] && ip link set "$IFACE" up
+if [ "$_was_up" -eq 1 ]; then
+    ip link set "$IFACE" down
+    ip link set "$IFACE" address "$_mac"
+    ip link set "$IFACE" up
+else
+    ip link set "$IFACE" address "$_mac"
+fi
 
 echo "[lan-mac] ${IFACE} -> ${_mac}"
