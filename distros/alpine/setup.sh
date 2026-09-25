@@ -150,8 +150,7 @@ grep -qx '/bin/bash' /etc/shells 2>/dev/null || echo '/bin/bash' >> /etc/shells
 chsh -s /bin/bash root 2>/dev/null || \
     sed -i '/^root:/ s|:[^:]*$|:/bin/bash|' /etc/passwd
 
-# cgroup v2（unified）。不设的话 OpenRC 什么都不挂，/sys/fs/cgroup 为空，
-# podman 报 cgroupControllers: []。配合 service.sh 启用 cgroups 服务。
+# cgroup v2（unified）；不设则 OpenRC 什么都不挂，podman 看不到任何控制器
 echo "[setup] 启用 cgroup v2 (unified) ..."
 sed -i 's|^#rc_cgroup_mode="unified"|rc_cgroup_mode="unified"|' /etc/rc.conf
 grep -q '^rc_cgroup_mode=' /etc/rc.conf || \
