@@ -35,6 +35,8 @@ check_rootfs() {
     _check_bin tailscaled /usr/local/bin/tailscaled
     _check_bin cloudflared /usr/local/bin/cloudflared
     _check_bin network-watchdog /usr/local/bin/network-watchdog
+    # podman-compose 是指向 python-exec2 的软链，-x 会跟着查目标；解释器被删时这里报错
+    _check_bin podman-compose /usr/bin/podman-compose /usr/local/bin/podman-compose
     _check_bin lan-mac  /usr/local/bin/lan-mac
     _check_bin rootfs-resize /usr/local/bin/rootfs-resize
     _check_bin resize2fs /sbin/resize2fs /usr/sbin/resize2fs

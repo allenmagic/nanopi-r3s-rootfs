@@ -231,15 +231,7 @@ if [ -n "${_PM_PKGS_}" ]; then
     ROOT="${TARGET_ROOTFS}" emerge --buildpkg=n --autounmask=y --autounmask-continue=y --autounmask-keep-masks=y ${_PM_PKGS_}
 fi
 
-# Python 清理：systemd-utils 只用了 tmpfiles（纯 C），Python 仅在构建时通过
-# REQUIRED_USE 拉入，运行时不需要。从目标 rootfs 中删除以节省 ~30MB
-# 注意：仅删除 /usr/lib/python* 下的运行时库文件，保留包头文件以防万一
-echo "[setup] 清理目标 rootfs 中的 Python（运行时不需要）..."
-rm -rf "${TARGET_ROOTFS}/usr/lib/python"* \
-       "${TARGET_ROOTFS}/usr/lib64/python"* \
-       "${TARGET_ROOTFS}/usr/bin/python"* \
-       "${TARGET_ROOTFS}/usr/share/python"* \
-       "${TARGET_ROOTFS}/usr/include/python"* 2>/dev/null || true
+# 保留 Python：podman-compose 是 Python 程序，删了解释器它就成了悬空软链，yunshu 起不来
 
 # 处理 [dl@] 下载包（直接下载到 TARGET_ROOTFS）
 if [ -f "${_PKG_LIST_}" ]; then
