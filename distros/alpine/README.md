@@ -31,6 +31,9 @@ dnsmasq / nftables / tailscale / cloudflared。`yunshu` / `wan-mgmt` / `network-
 
 ifupdown 退到只配 `lo`；`eth1` 的 MAC 由 `landscape-router` 的 `start_pre()` 调 `lan-mac` 处理。
 
+容器运行时用 **podman 顶替 docker**（镜像里不含 docker）：启用 `podman` 服务拿到 rootful API
+socket，并在 `landscape-router` 启动前把 `/var/run/docker.sock` 链到 `/run/podman/podman.sock`。
+
 构建期用上游 `landscape-webserver config` 子命令（稳定接口）生成 `landscape_init.toml`，
 拓扑取自 `network.env`：WAN=`eth0`(dhcp)、LAN=`br_lan` 桥 + `eth1` 成员、DHCP 池 `192.168.8.100-200`。
 

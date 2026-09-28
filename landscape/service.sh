@@ -11,5 +11,8 @@ enable_landscape() {
     # bpffs 由 localmount 读 /etc/fstab 挂载（见 install.sh 的 _ls_bpffs）
     rc-update add localmount boot 2>/dev/null || true
     rc-update add landscape-router default 2>/dev/null || true
-    echo "[landscape]   localmount (boot) / landscape-router (default) 已注册"
+    # 容器运行时用 podman 顶替 docker：该服务提供 rootful API socket
+    # （/run/podman/podman.sock，Alpine 的 /etc/conf.d/podman 默认 podman_user=root）
+    rc-update add podman default 2>/dev/null || true
+    echo "[landscape]   localmount (boot) / landscape-router, podman (default) 已注册"
 }

@@ -134,6 +134,20 @@ check_rootfs() {
         _check_file /var/lib/landscape-router/landscape_init.toml
         _check_openrc landscape-router
         _check_openrc localmount boot
+        # 容器运行时用 podman 顶替 docker，靠它的 rootful API socket
+        _check_openrc podman
+
+        # landscape 走 docker.sock，得指向 podman；同时确认没混进 docker
+        if grep -q 'podman\.sock' /etc/init.d/landscape-router 2>/dev/null; then
+            echo "  ✓ landscape-router 把 docker.sock 指向 podman.sock"; _OK=$((_OK + 1))
+        else
+            echo "  ✗ landscape-router 没把 docker.sock 指向 podman"; _FAIL=$((_FAIL + 1))
+        fi
+        if [ -x /usr/bin/docker ] || [ -x /usr/bin/dockerd ] || [ -x /usr/local/bin/docker ]; then
+            echo "  ✗ 镜像里有 docker（应改用 podman）"; _FAIL=$((_FAIL + 1))
+        else
+            echo "  ✓ 无 docker（容器运行时为 podman）"; _OK=$((_OK + 1))
+        fi
 
         # frontend 与二进制同版本发布，缺了页面就白屏
         if [ -d /usr/share/landscape-router/static/assets ] || \

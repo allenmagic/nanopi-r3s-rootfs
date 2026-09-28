@@ -65,7 +65,30 @@ landscape 接管 DNS/DHCP/防火墙/路由后，base 那套会和它抢。整段
 | `yunshu` | `network_mode: host` + 注入 `198.18.0.0/15` 路由，还会 restart dnsmasq |
 
 前四项在 `package.list` 的 **base-net** 段（landscape 整段跳过）；后三项的 init 脚本仍随
-`base/` 部署，但 `service.sh` 在 landscape 模式下不注册。`podman` 保留（landscape 可把流量分流进容器）。
+`base/` 部署，但 `service.sh` 在 landscape 模式下不注册。`podman` 保留 —— 它是 landscape
+的容器运行时（见下节）。
+
+## 容器运行时：podman 顶替 docker
+
+依据上游 [可使用 Podman 替换 Docker](https://landscape.whileaway.dev/zh/faq/podman.html)：
+landscape 通过 `docker.sock` 与容器运行时通信，所以让该路径指向 podman 的 rootful socket 即可。
+镜像里**从不安装 docker**，只用 podman。
+
+| 上游（systemd） | 本仓库（Alpine/OpenRC） |
+|---|---|
+| `systemctl enable --now podman.socket` | `rc-update add podman default` |
+| `podman-docker-socket` oneshot：`rm -f` + `ln -s` | `landscape-router` 的 `start_pre()` 里做同样两步 |
+| `After=podman.socket` / `Requires=podman.socket` | `depend() { want podman; after localmount podman }` |
+
+`/var/run/docker.sock -> /run/podman/podman.sock`。Alpine 的 `podman` 服务默认就是 rootful
+（`/etc/conf.d/podman` 的 `podman_user=root`），`start_pre` 会 `checkpath -d /run/podman`，
+`podman system service --time 0` 监听 `/run/podman/podman.sock`。
+
+**与上游的一处有意偏差**：用的是 `want` 而不是 `need`。systemd 那个 `Requires=` 指向的是
+`podman.socket`（很轻的 socket 单元），而 Alpine 的 `podman` 服务更重——它的 `start_post` 还会
+`podman start --all --filter restart-policy=...`，失败会让服务起不来。用 `need` 等于让容器运行时的
+抖动连累整个路由控制面不启动，不划算。`want` + `after` 保住了启动顺序；真晚到了，landscape
+的 docker 事件循环每 300 秒重连一次（`landscape/src/docker/mod.rs`）。
 
 ifupdown 也退到只配 `lo`（`network.sh`）——否则它和 landscape 会同时改 eth0/eth1 的地址和路由。
 `networking` 服务本身保留，供 lo 和 landscape 的 `need net` 用。

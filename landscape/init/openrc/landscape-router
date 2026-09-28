@@ -18,12 +18,21 @@ export LANDSCAPE_ADMIN_USER LANDSCAPE_ADMIN_PASS
 
 depend() {
     need net
-    after localmount
+    # 容器功能要 podman 的 API socket。用 want 而非 need：Alpine 的 podman 服务比
+    # systemd 的 podman.socket 重（还会 start 带 restart 策略的容器），让它启动失败
+    # 连累整个路由控制面不启动不值得；socket 晚到的话 landscape 每 5 分钟重连一次
+    want podman
+    after localmount podman
 }
 
 start_pre() {
     # eBPF map 需要锁定内存，对应 systemd 单元的 LimitMEMLOCK=infinity
     ulimit -l unlimited 2>/dev/null || true
+
+    # landscape 通过 docker.sock 与容器运行时通信，用 podman 顶替 docker
+    # （上游 FAQ「可使用 Podman 替换 Docker」）：把默认路径链到 podman 的 rootful socket
+    rm -f /var/run/docker.sock
+    ln -s /run/podman/podman.sock /var/run/docker.sock
 
     # fstab 那行靠 localmount 生效，这里兜底以防 localmount 没跑起来
     if ! mountpoint -q /sys/fs/bpf; then
