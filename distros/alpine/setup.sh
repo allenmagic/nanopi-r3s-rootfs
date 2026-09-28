@@ -26,6 +26,15 @@ if [ -f "${_PKG_LIST_}" ]; then
         [ -z "${_line_}" ] && continue
 
         case "${_line_}" in
+            '# ========== base-net'*)
+                # base-net 必须排在 base 之前：'base' 是 'base-net' 的前缀
+                case ",${INFRA:-base}," in
+                    *",landscape,"*) _section_="skip" ;;
+                    *)               _section_="packages" ;;
+                esac
+                echo "[setup] --- 段: base-net (infra=${INFRA:-base}) ---"
+                continue
+                ;;
             '# ========== base'*)
                 _section_="base"
                 echo "[setup] --- 段: base ---"
@@ -36,7 +45,7 @@ if [ -f "${_PKG_LIST_}" ]; then
                 continue
                 ;;
             '# ========== landscape'*)
-                _section_="skip"
+                case ",${INFRA:-base}," in *",landscape,"*) _section_="packages" ;; *) _section_="skip" ;; esac
                 continue
                 ;;
             '#'*) continue ;;
@@ -88,9 +97,10 @@ _deploy_cfg_() {
     fi
 }
 
-# 始终部署 base/
+# 始终部署 base/，sing-box 模式再叠加 sing-box/
+# landscape 不走这里：landscape/ 里是脚本而非 /etc 配置，且 init 脚本由
+# install_landscape() 自己装（_deploy_cfg_ 会把 install.sh/service.sh 一并 cp 进 /etc）
 _deploy_cfg_ base
-# sing-box 模式叠加部署 sing-box/
 case "${INFRA:-base}" in sing-box) _deploy_cfg_ sing-box ;; esac
 
 # sysctl.d 的 `-key = value` 是 systemd-sysctl 语法（键不存在时静默跳过），
@@ -138,6 +148,16 @@ fi
 configure_network
 
 # ============================================================
+#  2.6. Landscape Router 安装（仅 INFRA=landscape）
+# ============================================================
+case ",${INFRA:-base}," in
+    *",landscape,"*)
+        . /landscape/install.sh
+        install_landscape
+        ;;
+esac
+
+# ============================================================
 #  3. 系统设置
 # ============================================================
 echo "[setup] === 系统设置 ==="
@@ -180,6 +200,13 @@ rc-update add networking default 2>/dev/null || true
 echo "[setup] === 启用服务 ==="
 . /service.sh
 enable_router_services
+
+case ",${INFRA:-base}," in
+    *",landscape,"*)
+        . /landscape/service.sh
+        enable_landscape
+        ;;
+esac
 
 # 密钥注入
 [ -x /inject-secrets.sh ] && /bin/sh /inject-secrets.sh

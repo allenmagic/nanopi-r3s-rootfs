@@ -72,7 +72,13 @@ render.sh 工作流：读取三层 TOML → `concat-context.sh` 合并为单上�
 | Void Linux | ✅ 成熟 | xbps | `distros/void/build.sh` + `setup.sh` |
 | Devuan | ✅ 成熟 | apt (mmdebstrap) | `distros/devuan/build.sh` + `setup.sh` |
 | Debian | ✅ 成熟 | apt (mmdebstrap) | `distros/debian/build.sh` + `setup.sh` |
-| Alpine | 🚧 待完善 | apk | TBD |
+| Alpine | ✅ 成熟 | apk | `distros/alpine/build.sh` + `setup.sh` |
+
+`INFRA` 有三档：`base` / `sing-box` / `landscape`。`landscape` 目前**只有 Alpine** 接了
+（见 `docs/landscape-deployment-design.md`）：landscape 接管 DNS/DHCP/防火墙/路由，故 base 网络栈
+（dnsmasq / nftables / tailscale / cloudflared / yunshu / wan-mgmt / network-watchdog）整段不启用，
+`package.list` 为此拆出了 `base-net` 段。构建期用上游 `landscape-webserver config` 子命令生成
+`landscape_init.toml`，需搭 `kernel_mode=full` 的内核（BTF + eBPF）。
 
 Void 构建流程：
 1. 下载 xbps-static 缓存到 `build/void/cache/`

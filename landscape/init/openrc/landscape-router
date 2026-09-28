@@ -1,0 +1,38 @@
+#!/sbin/openrc-run
+
+name="landscape-router"
+description="Landscape Router"
+
+# home / 前端 / 日志分在三棵树：见 landscape/install.sh 的目录布局说明
+command="/usr/local/bin/landscape-webserver"
+command_args="--config-dir /var/lib/landscape-router \
+--web /usr/share/landscape-router/static \
+--log_path /var/log/landscape-router"
+command_user="root:root"
+command_background=true
+pidfile="/var/run/landscape-router.pid"
+
+# web 管理端凭据来自 0600 的 conf.d（本脚本自身是 0755，不能写密码）
+[ -r /etc/conf.d/landscape-router ] && . /etc/conf.d/landscape-router
+export LANDSCAPE_ADMIN_USER LANDSCAPE_ADMIN_PASS
+
+depend() {
+    need net
+    after localmount
+}
+
+start_pre() {
+    # eBPF map 需要锁定内存，对应 systemd 单元的 LimitMEMLOCK=infinity
+    ulimit -l unlimited 2>/dev/null || true
+
+    # fstab 那行靠 localmount 生效，这里兜底以防 localmount 没跑起来
+    if ! mountpoint -q /sys/fs/bpf; then
+        mount -t bpf bpf /sys/fs/bpf 2>/dev/null || true
+    fi
+
+    # RTL8111H 无 EEPROM，不设就是每次开机随机 MAC。别的 INFRA 靠 ifupdown 的
+    # pre-up 触发，landscape 模式下 ifupdown 不碰 eth1，得在这里赶在它建 br_lan 之前做
+    if [ -x /usr/local/bin/lan-mac ]; then
+        /usr/local/bin/lan-mac >/dev/null 2>&1 || true
+    fi
+}

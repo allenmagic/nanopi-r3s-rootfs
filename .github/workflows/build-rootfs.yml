@@ -2,7 +2,7 @@ name: Build Router Rootfs
 
 env:
   ALL_DISTROS: '["void","devuan","debian","alpine","gentoo"]'  # 与 workflow_dispatch.inputs.distro.options 保持同步
-  ALL_INFRAS: '["base","sing-box"]'     # 路由系统组件
+  ALL_INFRAS: '["base","sing-box","landscape"]'  # 路由系统组件（landscape 目前仅 alpine）
   ALL_ARCHS: '["aarch64","x86_64"]'     # 与 workflow_dispatch.inputs.arch.options 保持同步
 
 on:
@@ -19,7 +19,7 @@ on:
         type: choice
         required: true
         default: base
-        options: [all, base, sing-box]
+        options: [all, base, sing-box, landscape]
       arch:
         description: "目标架构（aarch64 在 ARM runner、x86_64 在 x86 runner 原生构建，无需 qemu）"
         type: choice
@@ -66,12 +66,18 @@ jobs:
           INCLUDE="["
           for D in $(echo "${DISTROS}" | jq -r '.[]'); do
             for I in $(echo "${INFRAS}" | jq -r '.[]'); do
+              # landscape 目前只有 alpine 接了；别的组合会静默产出挂羊头卖狗肉的 base 产物
+              if [ "$I" = "landscape" ] && [ "$D" != "alpine" ]; then continue; fi
               for A in $(echo "${ARCHS}" | jq -r '.[]'); do
                 if [ "$A" = "aarch64" ]; then R="ubuntu-24.04-arm"; else R="ubuntu-24.04"; fi
                 INCLUDE="${INCLUDE}{\"distro\":\"${D}\",\"infra\":\"${I}\",\"arch\":\"${A}\",\"runner\":\"${R}\"},"
               done
             done
           done
+          if [ "${INCLUDE}" = "[" ]; then
+            echo "错误：没有匹配的构建组合（landscape 目前仅支持 alpine）" >&2
+            exit 1
+          fi
           INCLUDE="${INCLUDE%,}]"
           echo "matrix={\"include\":${INCLUDE}}" >> "$GITHUB_OUTPUT"
 

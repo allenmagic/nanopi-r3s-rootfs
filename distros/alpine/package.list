@@ -5,7 +5,7 @@
 #   [pm] <package>                —— 包管理器安装（apk add）
 #   [dl@<url>] <binary_name>      —— 下载 URL 到 /usr/local/bin/<binary_name>
 #
-# 三段式：base / sing-box / landscape
+# 四段式：base / base-net / sing-box / landscape
 # ============================================================
 
 # ========== base ==========
@@ -23,15 +23,22 @@
 [pm] cloud-utils-growpart
 [pm] tzdata
 [pm] busybox-openrc
-[pm] dnsmasq
-[pm] nftables
-[pm] tailscale
 [pm] fastfetch
 [pm] podman
 [pm] podman-compose
+
+# ========== base-net ==========
+# 基础网络栈。landscape 自带 DNS/DHCP（不占 53）、eBPF 防火墙、虚拟组网与隧道，
+# 整段跳过，否则 dnsmasq 会占住 53 端口导致 landscape 起不来
+[pm] dnsmasq
+[pm] nftables
+[pm] tailscale
 [dl@https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64] cloudflared
 
 # ========== sing-box ==========
 [pm] sing-box
 
 # ========== landscape ==========
+# 二进制与前端资源不走包管理器（要解 static.zip、并用同版本二进制生成
+# landscape_init.toml），见 landscape/install.sh。这里只放它依赖的工具
+[pm] unzip

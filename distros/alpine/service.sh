@@ -21,27 +21,40 @@ enable_router_services() {
     _enable_service syslog
     _enable_service crond
 
-    # --- base 应用服务（按依赖顺序）---
-    # 1. 防火墙（最先加载）
-    _enable_nftables
+    # landscape 接管网络，base 网络栈整块不启用：
+    #   dnsmasq           占住 :53，landscape 直接起不来
+    #   nftables          规则由 landscape 的 eBPF 管
+    #   wan-mgmt / network-watchdog   都要改 WAN 与路由，和 landscape 抢
+    #   tailscale         改路由 + 写 resolv.conf
+    #   yunshu            注入 198.18.0.0/15 路由，还会 restart dnsmasq
+    case ",${INFRA:-base}," in
+        *",landscape,"*)
+            echo "[service] --- landscape 模式：跳过 base 网络栈服务 ---"
+            ;;
+        *)
+            # --- base 网络服务（按依赖顺序）---
+            # 1. 防火墙（最先加载）
+            _enable_nftables
 
-    # 2. 核心网络服务
-    _enable_service dnsmasq
+            # 2. DHCP/DNS
+            _enable_service dnsmasq
 
-    # 3. 基础应用服务
+            # 3. VPN 和隧道服务
+            _enable_service tailscale
+            _enable_cloudflared
+
+            # 4. 监控服务
+            _enable_service network-watchdog
+            _enable_service wan-mgmt
+
+            # 5. 容器服务
+            _enable_service yunshu
+            ;;
+    esac
+
+    # 基础应用服务（各 INFRA 都要）
     _enable_service sshd
     _enable_service chronyd
-
-    # 4. VPN 和隧道服务
-    _enable_service tailscale
-    _enable_cloudflared
-
-    # 5. 监控服务
-    _enable_service network-watchdog
-    _enable_service wan-mgmt
-
-    # 6. 容器服务
-    _enable_service yunshu
 
     # --- 根据 INFRA 启用组件服务 ---
     case ",${INFRA:-base}," in

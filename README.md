@@ -7,8 +7,9 @@
 - **多发行版支持**：Void Linux / Devuan / Debian / Alpine Linux / Gentoo
 - **跨架构构建**：x86_64 主机可通过 qemu-user-static 构建 aarch64 rootfs
 - **最小化打包**：自动精简 rootfs，xz 极限压缩
-- **分层配置部署**：`base/` 通用配置始终部署，`sing-box/` 专属配置按需叠加
-- **包管理分离**：三段式 `package.list`（base / sing-box / landscape），`[pm]` 走包管理器、`[dl@URL]` 走下载
+- **分层配置部署**：`base/` 通用配置始终部署，`sing-box/`、`landscape/` 专属配置按需叠加
+- **包管理分离**：四段式 `package.list`（base / base-net / sing-box / landscape），`[pm]` 走包管理器、`[dl@URL]` 走下载
+- **Landscape Router**：`INFRA=landscape` 直接下载上游二进制 + 前端资源，构建期用同一个二进制生成 `landscape_init.toml`，刷机即可用
 - **CI 就绪**：GitHub Actions 自动构建并发布 Release
 
 ## 前置要求
@@ -74,12 +75,19 @@ sudo ./distros/void/build.sh
 
 # 构建 sing-box 栈（DNS 由 sing-box 接管）
 sudo INFRA=sing-box ./distros/void/build.sh
+
+# 构建 landscape 栈（landscape 接管 DNS/DHCP/防火墙/路由；目前仅 alpine）
+sudo INFRA=landscape ./distros/alpine/build.sh
 ```
 
 | INFRA 值 | DNS | 包含服务 |
 |----------|-----|---------|
 | `base` | dnsmasq（阿里云 + 腾讯上游） | ssh / chrony / nftables / dnsmasq / tailscale / cloudflared |
 | `sing-box` | sing-box DNS server | 同上 + sing-box（dnsmasq 关闭 DNS，仅保留 DHCP） |
+| `landscape` | landscape 自带 DNS server | ssh / chrony / landscape-router（**不装** dnsmasq / nftables / tailscale / cloudflared） |
+
+> `landscape` 与 base 网络栈互斥：landscape 要占 `:53`、自己管防火墙和路由，两者同时跑会互相打架。
+> 详见 [docs/landscape-deployment-design.md](docs/landscape-deployment-design.md)。目前只有 Alpine 接了这条链路。
 
 ## 构建环境变量
 
@@ -170,6 +178,10 @@ CLOUDFLARED_TOKEN=xxxxx
 │   ├── sing-box/           #  sing-box 程序配置和规则
 │   └── dnsmasq.d/
 │       └── 99-disable-dns-server.conf  # 关闭 dnsmasq DNS（由 sing-box 接管）
+├── landscape/              # Landscape Router 专属（叠加部署）
+│   ├── install.sh          #  下载二进制/前端资源 + 生成 landscape_init.toml
+│   ├── service.sh          #  注册 OpenRC 服务（localmount / landscape-router）
+│   └── init/openrc/        #  landscape-router 服务单元
 └── tools/                  # 工具脚本
     ├── chroot-in.sh        #  交互式 chroot 进入
     ├── chroot-exit.sh      #  chroot 挂载清理

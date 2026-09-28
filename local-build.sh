@@ -6,6 +6,7 @@
 # 用法：
 #   ./local-build.sh [--distro gentoo] [--infra base] [--arch aarch64] [--mirror default]
 #                    [--jobs N] [--cold] [--no-pack] [--debug]
+#   --infra 可选 base / sing-box / landscape（landscape 目前仅 alpine）
 #
 # 需要 sudo 密码（build.sh 要在 chroot 里 emerge）。
 # 密钥走 .env（被 .gitignore 忽略），没有则跳过注入，只影响 SSH key / tailscale / cloudflared。
@@ -48,6 +49,12 @@ case "${DISTRO}" in
     void|devuan|debian|alpine|gentoo) ;;
     *) echo "无效 --distro: ${DISTRO}" >&2; exit 1 ;;
 esac
+
+# landscape 目前只有 alpine 接了；放行只会构建出一个其实是 base 的产物
+if [ "${INFRA}" = "landscape" ] && [ "${DISTRO}" != "alpine" ]; then
+    echo "无效组合: --infra landscape 目前仅支持 --distro alpine" >&2
+    exit 1
+fi
 
 BUILD_SH="${REPO_ROOT}/distros/${DISTRO}/build.sh"
 OUT_DIR="${REPO_ROOT}/build/local-out"

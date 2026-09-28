@@ -10,6 +10,21 @@ configure_network() {
 
     _replace_placeholders
 
+    # landscape 自己建 br_lan、自己跑 WAN 的 DHCP 客户端；ifupdown 再碰 eth0/eth1
+    # 就是两边抢着改地址和路由。只留 lo，networking 服务照常启用。
+    # eth1 的 MAC 由 landscape-router 的 start_pre 调 lan-mac 处理。
+    case ",${INFRA:-base}," in
+        *",landscape,"*)
+            cat > /etc/network/interfaces << 'EOF'
+auto lo
+iface lo inet loopback
+EOF
+            echo "[network] landscape 模式：ifupdown 仅配置 lo"
+            echo "[network] === 网络配置完成 ==="
+            return 0
+            ;;
+    esac
+
     cat > /etc/network/interfaces << EOF
 auto lo
 iface lo inet loopback

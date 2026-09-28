@@ -31,10 +31,16 @@ check_rootfs() {
     _check_bin bash
     _check_bin sshd
     _check_bin chronyd
-    _check_bin dnsmasq
-    _check_bin nft
-    _check_bin tailscaled
-    _check_bin cloudflared
+    # base 网络栈在 landscape 模式下整段不装（见 package.list 的 base-net 段）
+    case ",${INFRA:-base}," in
+        *",landscape,"*) ;;
+        *)
+            _check_bin dnsmasq
+            _check_bin nft
+            _check_bin tailscaled
+            _check_bin cloudflared
+            ;;
+    esac
     _check_bin network-watchdog
     _check_bin agetty /sbin/agetty
     _check_ca_certs
@@ -93,15 +99,70 @@ check_rootfs() {
     echo "[check] openrc 应用服务:"
     _check_openrc sshd
     _check_openrc chronyd
-    _check_openrc nftables
-    _check_openrc dnsmasq
-    _check_openrc tailscale
-    _check_openrc cloudflared
-    _check_openrc network-watchdog
+    case ",${INFRA:-base}," in
+        *",landscape,"*)
+            echo "[check] (landscape 模式：base 网络栈服务不启用，跳过)"
+            ;;
+        *)
+            _check_openrc nftables
+            _check_openrc dnsmasq
+            _check_openrc tailscale
+            _check_openrc cloudflared
+            _check_openrc network-watchdog
+            ;;
+    esac
 
     # sing-box 仅在 INFRA=sing-box 时检查
     case ",${INFRA:-base}," in *",sing-box,"*)
         _check_openrc sing-box
+    ;; esac
+
+    # landscape 仅在 INFRA=landscape 时检查
+    case ",${INFRA:-base}," in *",landscape,"*)
+        _check_file() { _f_="$1"
+            if [ -f "$_f_" ]; then
+                echo "  ✓ $_f_"; _OK=$((_OK + 1))
+            else
+                echo "  ✗ $_f_ 缺失!"; _FAIL=$((_FAIL + 1))
+            fi
+        }
+
+        echo "[check] landscape:"
+        _check_bin landscape-webserver /usr/local/bin/landscape-webserver
+        _check_bin lan-mac /usr/local/bin/lan-mac
+        _check_file /usr/share/landscape-router/static/index.html
+        _check_file /var/lib/landscape-router/landscape_init.toml
+        _check_openrc landscape-router
+        _check_openrc localmount boot
+
+        # frontend 与二进制同版本发布，缺了页面就白屏
+        if [ -d /usr/share/landscape-router/static/assets ] || \
+           [ -d /usr/share/landscape-router/static/scalar ]; then
+            echo "  ✓ static 资源目录"; _OK=$((_OK + 1))
+        else
+            echo "  ✗ static 资源目录缺失"; _FAIL=$((_FAIL + 1))
+        fi
+
+        # landscape 的 DNS 要占 :53，dnsmasq 一起跑它就直接起不来
+        if [ -e /etc/runlevels/default/dnsmasq ]; then
+            echo "  ✗ dnsmasq 注册进了 default（会占住 :53）"; _FAIL=$((_FAIL + 1))
+        else
+            echo "  ✓ dnsmasq 未启用（:53 留给 landscape）"; _OK=$((_OK + 1))
+        fi
+
+        # 凭据文件默认 0644，必须是 0600
+        if [ "$(stat -c '%a' /etc/conf.d/landscape-router 2>/dev/null)" = "600" ]; then
+            echo "  ✓ conf.d 凭据权限 0600"; _OK=$((_OK + 1))
+        else
+            echo "  ✗ /etc/conf.d/landscape-router 权限不是 0600"; _FAIL=$((_FAIL + 1))
+        fi
+
+        # OpenRC 不自动挂 bpffs，漏了这行 landscape pin eBPF map 会报 ENOENT
+        if grep -qE '^[^#]*[[:space:]]/sys/fs/bpf([[:space:]]|$)' /etc/fstab 2>/dev/null; then
+            echo "  ✓ fstab 有 bpffs 挂载项"; _OK=$((_OK + 1))
+        else
+            echo "  ✗ fstab 缺 bpffs 挂载项"; _FAIL=$((_FAIL + 1))
+        fi
     ;; esac
 
     # ---------- 结果 ----------
