@@ -36,7 +36,7 @@
 [dl@https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64] cloudflared
 
 # ========== sing-box ==========
-[pm] sing-box
+[dl@https://github.com/sagernet/sing-box/releases/download/v1.14.4/sing-box-1.14.4-linux-arm64.tar.gz] sing-box
 
 # ========== landscape ==========
 # 二进制与前端资源不走包管理器（要解 static.zip、并用同版本二进制生成
