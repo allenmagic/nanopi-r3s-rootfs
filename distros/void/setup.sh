@@ -130,6 +130,9 @@ xbps-reconfigure -a
 echo "[setup] 设置 root 密码 ..."
 echo "root:${ROOT_PASSWORD}" | chpasswd
 
+echo "[setup] 允许 SSH 密码登录 ..."
+/bin/sh /scripts/enable-ssh-password.sh
+
 echo "[setup] 设置默认 shell 为 bash ..."
 grep -qx '/bin/bash' /etc/shells 2>/dev/null || echo '/bin/bash' >> /etc/shells
 chsh -s /bin/bash root 2>/dev/null || \

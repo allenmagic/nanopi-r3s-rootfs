@@ -489,6 +489,9 @@ echo "[setup] 设置 root 密码 ..."
 _hash_="$(openssl passwd -6 "${ROOT_PASSWORD}")"
 sed -i "s|^root:[^:]*:|root:${_hash_}:|" "${TARGET_ROOTFS}/etc/shadow"
 
+echo "[setup] 允许 SSH 密码登录 ..."
+/bin/sh "${SCRIPT_DIR}/scripts/enable-ssh-password.sh" "${TARGET_ROOTFS}"
+
 echo "[setup] 确认默认 shell 为 bash ..."
 sed -i '/^root:/ s|:[^:]*$|:/bin/bash|' "${TARGET_ROOTFS}/etc/passwd"
 

@@ -31,6 +31,12 @@ check_rootfs() {
     _check_bin bash
     _check_bin sshd
     _check_bin chronyd
+    if grep -qE '^[[:space:]]*PasswordAuthentication[[:space:]]+yes' /etc/ssh/sshd_config 2>/dev/null && \
+       grep -qE '^[[:space:]]*PermitRootLogin[[:space:]]+yes' /etc/ssh/sshd_config 2>/dev/null; then
+        echo "  ✓ sshd 允许密码登录 (LAN)"; _OK=$((_OK + 1))
+    else
+        echo "  ✗ sshd 未允许密码登录"; _FAIL=$((_FAIL + 1))
+    fi
     # base 网络栈在 landscape 模式下整段不装（见 package.list 的 base-net 段）
     case ",${INFRA:-base}," in
         *",landscape,"*) ;;
