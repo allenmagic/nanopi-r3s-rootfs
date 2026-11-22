@@ -135,6 +135,10 @@ if [ -f /scripts/rootfs-resize.sh ]; then
     install -m 0755 /scripts/rootfs-resize.sh /usr/local/bin/rootfs-resize
     echo "[setup]   已安装: rootfs-resize"
 fi
+if [ -f /scripts/singbox-yunshu.sh ]; then
+    install -m 0755 /scripts/singbox-yunshu.sh /usr/local/bin/yunshu-domain
+    echo "[setup]   已安装: yunshu-domain"
+fi
 
 # 统一路径
 if [ ! -e /usr/local/bin/sing-box ] && [ -x /usr/bin/sing-box ]; then
@@ -146,6 +150,17 @@ fi
 # ============================================================
 . /network.sh
 configure_network
+
+# sing-box 模式：由域名清单生成规则集（提交的 JSON 是兜底，这里保证与 txt 同步）
+case ",${INFRA:-base}," in
+    *",sing-box,"*)
+        if [ -x /usr/local/bin/yunshu-domain ] && \
+           [ -f /etc/sing-box/rules/yunshu-domains.txt ]; then
+            echo "[setup] 生成 yunshu-domains.json ..."
+            /usr/local/bin/yunshu-domain render
+        fi
+        ;;
+esac
 
 # ============================================================
 #  2.6. Landscape Router 安装（仅 INFRA=landscape）

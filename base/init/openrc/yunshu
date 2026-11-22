@@ -13,7 +13,13 @@ dns_conf=/etc/dnsmasq.d/15-vpn-tunnel-dns.conf
 
 depend() {
     need net
-    use dns logger
+    after nftables
+    use logger
+}
+
+# sing-box 模式：DNS 由 sing-box 统一管理，yunshu 不再写 dnsmasq drop-in
+_is_singbox() {
+    [ -f /etc/sing-box/config.json ]
 }
 
 _tunnel_dns() {
@@ -34,6 +40,16 @@ _tunnel_dns() {
     rc-service dnsmasq restart >/dev/null 2>&1 || return 1
 }
 
+_wait_tun() {
+    _i_=0
+    while [ "${_i_}" -lt "${1:-60}" ]; do
+        ip link show "${VPN_IFACE:-tun0}" >/dev/null 2>&1 && return 0
+        sleep 1
+        _i_=$((_i_ + 1))
+    done
+    return 1
+}
+
 start() {
     ebegin "Starting yunshu"
     ${compose_cmd} up -d
@@ -45,9 +61,25 @@ start() {
     [ -f "${envfile}" ] && . "${envfile}"
     set +a
 
-    ebegin "Tunnel DNS upstream (${VPN_DNS_UPSTREAM:-none})"
-    _tunnel_dns on
-    eend $?
+    if _is_singbox; then
+        # 升级自旧版本时可能残留 drop-in；sing-box 模式下必须清掉
+        if [ -f "${dns_conf}" ]; then
+            ebegin "Removing legacy tunnel DNS drop-in"
+            rm -f "${dns_conf}"
+            rc-service dnsmasq restart >/dev/null 2>&1 || true
+            eend 0
+        fi
+    else
+        ebegin "Tunnel DNS upstream (${VPN_DNS_UPSTREAM:-none})"
+        _tunnel_dns on
+        eend $?
+    fi
+
+    ebegin "Waiting for ${VPN_IFACE:-tun0}"
+    _wait_tun 60
+    _tun_rc_=$?
+    eend "${_tun_rc_}"
+    [ "${_tun_rc_}" -eq 0 ] || ewarn "yunshu 未创建 ${VPN_IFACE:-tun0}，继续启动（sing-box 仍会启动）"
 
     ebegin "Starting vpn-routes (${VPN_IFACE:-tun0} <- ${VPN_FAKEIP_CIDRS:-198.18.0.0/15})"
     start-stop-daemon --start --quiet --background --make-pidfile \
@@ -56,9 +88,15 @@ start() {
 }
 
 stop() {
-    ebegin "Reverting tunnel DNS upstream"
-    _tunnel_dns off
-    eend $?
+    set -a
+    [ -f "${envfile}" ] && . "${envfile}"
+    set +a
+
+    if ! _is_singbox; then
+        ebegin "Reverting tunnel DNS upstream"
+        _tunnel_dns off
+        eend $?
+    fi
 
     ebegin "Stopping vpn-routes"
     start-stop-daemon --stop --quiet --pidfile "${routes_pid}"

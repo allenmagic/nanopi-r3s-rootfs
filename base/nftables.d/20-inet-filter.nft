@@ -1,6 +1,7 @@
 table inet filter {
     # ===============================================================================================
-    # 定义集合变量：LAN_IFS_LIST/WAN_IFS_LIST/VPN_IFS_LIST/TUN_IFS_LIST变量在00-inet-vars.nft中定义
+    # 定义集合变量：LAN_IFS_LIST/WAN_IFS_LIST/VPN_IFS_LIST/SB_TUN_IFS_LIST/YUNSHU_IFS_LIST
+    # 在 00-inet-vars.nft 中定义
     # ===============================================================================================
     set lan_interfaces {
         type ifname;
@@ -17,9 +18,16 @@ table inet filter {
          elements = $VPN_IFS_LIST;
     }
 
+    # sing-box 的 TUN（singtun0）
     set tun_interfaces {
         type ifname;
-        elements = $TUN_IFS_LIST;
+        elements = $SB_TUN_IFS_LIST;
+    }
+
+    # yunshu 的 TUN（tun0）
+    set yunshu_interfaces {
+        type ifname;
+        elements = $YUNSHU_IFS_LIST;
     }
 
     # WAN 侧管理放行网段（运行时由 wan-mgmt 服务填入 WAN 口直连网段）
@@ -134,6 +142,10 @@ table inet filter {
         iifname @lan_interfaces tcp dport $DNS_PORT accept;
         iifname @tun_interfaces tcp dport $DNS_PORT accept;
 
+        # yunshu 隧道 DNS 回包（sing-box -> 10.251.1.1 的查询）
+        iifname @yunshu_interfaces ip saddr $YUNSHU_DNS udp sport $DNS_PORT accept;
+        iifname @yunshu_interfaces ip saddr $YUNSHU_DNS tcp sport $DNS_PORT accept;
+
         # ------------------  ICMP (LAN)  ---------------------
         iifname @lan_interfaces icmp type {
             echo-request,
@@ -176,17 +188,26 @@ table inet filter {
         # -------------------- MSS Clamping ---------------------
         tcp flags syn tcp option maxseg size set rt mtu;
 
-        # --------------------- LAN -> WAN 转发 -----------------
-        iifname @lan_interfaces oifname @wan_interfaces accept;
+        # 注意：这里有意不放行 LAN -> WAN。
+        # sing-box 全量接管 LAN（auto_redirect -> singtun0），普通流量由
+        # sing-box 的 final 出口 direct-out 发出，不经过内核 LAN->WAN 直通。
 
-        # --------------------- LAN -> TUN 转发 -----------------
+        # --------------------- LAN -> sing-box TUN --------------
         iifname @lan_interfaces oifname @tun_interfaces accept;
 
-        # --------------------- TUN -> WAN 转发 -----------------
+        # --------------------- sing-box TUN -> WAN/LAN ----------
         iifname @tun_interfaces oifname @wan_interfaces accept;
-
-        # --------------------- TUN -> LAN 转发 -----------------
         iifname @tun_interfaces oifname @lan_interfaces accept;
+
+        # --------------------- bridge 内部 TUN <-> yunshu -------
+        # sing-box bridge 出站创建 sbbr*，把 fake-IP 的 L3 包转给 tun0
+        iifname "sbbr*" oifname @yunshu_interfaces accept;
+        iifname @yunshu_interfaces oifname "sbbr*" accept;
+
+        # --------------------- fake-IP 直通兜底 -----------------
+        # sing-box 未运行时，198.18/15 的 main 路由会把包直接送进 tun0
+        iifname @lan_interfaces oifname @yunshu_interfaces accept;
+        iifname @yunshu_interfaces oifname @lan_interfaces accept;
 
         # --------------------- Tailscale -> TUN 转发 ------------
         ip saddr $TS_NET oifname @tun_interfaces accept;
@@ -197,6 +218,12 @@ table inet filter {
         # ---------------------- VPN Routing --------------------
         iifname @vpn_interfaces oifname @lan_interfaces accept;
         iifname @lan_interfaces oifname @vpn_interfaces accept;
+        iifname @vpn_interfaces oifname @tun_interfaces accept;
+        iifname @tun_interfaces oifname @vpn_interfaces accept;
+        iifname @vpn_interfaces oifname @yunshu_interfaces accept;
+        iifname @yunshu_interfaces oifname @vpn_interfaces accept;
+        # VPN 客户端的普通上网不做 auto_redirect，直接走 WAN
+        iifname @vpn_interfaces oifname @wan_interfaces accept;
 
         limit rate 10/minute log prefix "FORWARD_DROP: " drop;
     }

@@ -4,7 +4,11 @@ define WAN = __WAN_IFACE__
 define LAN = __LAN_IFACE__
 define WG = wg0
 define TS = { ts0, tailscale0 }
-define TUN = tun0
+# sing-box 自己的 TUN；与 yunshu 的 tun0 必须分开
+define SB_TUN = singtun0
+# yunshu（podman host 网络）创建的 TUN，固定为 tun0
+define YUNSHU_TUN = tun0
+define YUNSHU_DNS = 10.251.1.1
 
 # 2. 端口与网段定义
 define WG_PORT = 51820
@@ -22,7 +26,8 @@ define VPN_NETS = { $TS_NET, $WG_NET }
 define WAN_IFS_LIST = { $WAN }
 define LAN_IFS_LIST = { $LAN }
 define VPN_IFS_LIST = { $WG, $TS }
-define TUN_IFS_LIST = { $TUN }
+define SB_TUN_IFS_LIST = { $SB_TUN }
+define YUNSHU_IFS_LIST = { $YUNSHU_TUN }
 
 # 4. 定义路由表 ID
 define ROUTE_TABLE_ID = 100

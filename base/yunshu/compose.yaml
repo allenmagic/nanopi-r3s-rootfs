@@ -12,6 +12,8 @@ services:
       - SYS_ADMIN
     volumes:
       - ${YUNSHU_STATE_DIR}:/var/lib/yunshu
+      # 控制面（sp.eagleyun.cn）在隧道建立前就要解析；不能依赖 sing-box/yunshu DNS
+      - /etc/yunshu/resolv.conf:/etc/resolv.conf:ro
     environment:
       YUNSHU_CORP_CODE: ${YUNSHU_CORP_CODE}
       YUNSHU_SP_ADDR: ${YUNSHU_SP_ADDR}

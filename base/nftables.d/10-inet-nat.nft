@@ -19,7 +19,12 @@ table inet nat {
 
     set tun_interfaces {
         type ifname;
-        elements = $TUN_IFS_LIST;
+        elements = $SB_TUN_IFS_LIST;
+    }
+
+    set yunshu_interfaces {
+        type ifname;
+        elements = $YUNSHU_IFS_LIST;
     }
 
     # ============================================================
@@ -27,6 +32,11 @@ table inet nat {
     # ============================================================
     chain prerouting {
         type nat hook prerouting priority dstnat; policy accept;
+
+        # LAN 内自行配置的 DNS 也强制归口到 sing-box 的 dns-in
+        # （sing-box 监听 ROUTER_LAN_IP:53；redirect 使用入接口主地址）
+        iifname @lan_interfaces udp dport $DNS_PORT redirect to :$DNS_PORT;
+        iifname @lan_interfaces tcp dport $DNS_PORT redirect to :$DNS_PORT;
     }
 
     # ============================================================

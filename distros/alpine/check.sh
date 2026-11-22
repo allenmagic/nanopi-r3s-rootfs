@@ -106,6 +106,7 @@ check_rootfs() {
         *)
             _check_openrc nftables
             _check_openrc dnsmasq
+            _check_openrc yunshu
             _check_openrc tailscale
             _check_openrc cloudflared
             _check_openrc network-watchdog
@@ -114,7 +115,67 @@ check_rootfs() {
 
     # sing-box 仅在 INFRA=sing-box 时检查
     case ",${INFRA:-base}," in *",sing-box,"*)
+        echo "[check] sing-box:"
+        _check_bin sing-box /usr/local/bin/sing-box
         _check_openrc sing-box
+
+        # 1.14+ 才支持 bridge outbound
+        _v_="$(/usr/local/bin/sing-box version 2>/dev/null | head -n1 | \
+               sed -n 's/.* \([0-9][0-9]*\.[0-9][0-9]*\)\..*/\1/p')"
+        if [ -n "${_v_}" ] && \
+           printf '%s\n' "${_v_}" | awk -F. '{exit !($1>1 || ($1==1 && $2>=14))}'; then
+            echo "  ✓ sing-box ${_v_} (>=1.14)"; _OK=$((_OK + 1))
+        else
+            echo "  ✗ sing-box 版本 ${_v_:-未知} < 1.14，bridge outbound 不可用"
+            _FAIL=$((_FAIL + 1))
+        fi
+
+        for _f_ in /etc/sing-box/rules/yunshu-domains.json \
+                    /etc/sing-box/rules/yunshu-domains.txt \
+                    /etc/sing-box/rules/bypass-cidrs.json; do
+            if [ -f "${_f_}" ]; then
+                echo "  ✓ ${_f_}"; _OK=$((_OK + 1))
+            else
+                echo "  ✗ ${_f_} 缺失!"; _FAIL=$((_FAIL + 1))
+            fi
+        done
+
+        if grep -q '"interface_name": "singtun0"' /etc/sing-box/config.json 2>/dev/null; then
+            echo "  ✓ sing-box TUN = singtun0"; _OK=$((_OK + 1))
+        else
+            echo "  ✗ sing-box TUN 未使用 singtun0（会与 yunshu tun0 冲突）"
+            _FAIL=$((_FAIL + 1))
+        fi
+
+        if grep -q '"type": "bridge"' /etc/sing-box/config.json 2>/dev/null; then
+            echo "  ✓ yunshu bridge outbound"; _OK=$((_OK + 1))
+        else
+            echo "  ✗ 缺少 yunshu bridge outbound"; _FAIL=$((_FAIL + 1))
+        fi
+
+        if grep -q '^port=0' /etc/dnsmasq.d/99-disable-dns-server.conf 2>/dev/null; then
+            echo "  ✓ dnsmasq port=0（仅 DHCP）"; _OK=$((_OK + 1))
+        else
+            echo "  ✗ dnsmasq 未关闭 DNS（port=0）"; _FAIL=$((_FAIL + 1))
+        fi
+
+        if grep -qE '__LAN_(IP|NET|IFACE)__' \
+                /etc/sing-box/config.json /etc/sing-box/rules/*.json 2>/dev/null; then
+            echo "  ✗ sing-box 配置仍有 LAN 占位符残留"
+            grep -nE '__LAN_(IP|NET|IFACE)__' \
+                /etc/sing-box/config.json /etc/sing-box/rules/*.json 2>/dev/null
+            _FAIL=$((_FAIL + 1))
+        else
+            echo "  ✓ sing-box 配置无 LAN 占位符残留"; _OK=$((_OK + 1))
+        fi
+
+        if /usr/local/bin/sing-box check -c /etc/sing-box/config.json >/dev/null 2>&1; then
+            echo "  ✓ sing-box check"; _OK=$((_OK + 1))
+        else
+            echo "  ✗ sing-box check 失败"
+            /usr/local/bin/sing-box check -c /etc/sing-box/config.json 2>&1 | tail -20
+            _FAIL=$((_FAIL + 1))
+        fi
     ;; esac
 
     # landscape 仅在 INFRA=landscape 时检查

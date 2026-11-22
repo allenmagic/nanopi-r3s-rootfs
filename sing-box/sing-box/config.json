@@ -1,9 +1,9 @@
 {
   "log": {
-    "level": "debug",
+    "level": "info",
     "timestamp": true
   },
-  
+
   "dns": {
     "servers": [
       {
@@ -14,27 +14,16 @@
       },
       {
         "type": "udp",
-        "tag": "tencent",
-        "server": "119.29.29.29",
-        "server_port": 53
-      },
-      {
-        "type": "udp",
-        "tag": "google",
-        "server": "8.8.8.8",
+        "tag": "yunshu",
+        "server": "10.251.1.1",
         "server_port": 53,
-        "detour": "ss-out"
+        "detour": "yunshu-dns"
       }
     ],
     "rules": [
       {
-        "rule_set": ["adblock-reject", "geosite-ads", "adblock-cnlite"],
-        "action": "predefined",
-        "rcode": "NXDOMAIN"
-      },
-      {
-        "rule_set": ["proxy-list"],
-        "server": "google"
+        "rule_set": ["yunshu-domains"],
+        "server": "yunshu"
       }
     ],
     "final": "local",
@@ -51,14 +40,25 @@
 
   "inbounds": [
     {
+      "type": "direct",
+      "tag": "dns-in",
+      "listen": "__LAN_IP__",
+      "listen_port": 53
+    },
+    {
       "type": "tun",
       "tag": "tun-in",
-      "interface_name": "tun0",
+      "interface_name": "singtun0",
       "address": ["172.19.0.1/30"],
       "mtu": 1280,
       "auto_route": true,
-      "include_interface": ["eth1"],
       "auto_redirect": true,
+      "route_exclude_address": [
+        "10.251.1.1/32",
+        "__LAN_NET__"
+      ],
+      "route_exclude_address_set": ["bypass-cidrs"],
+      "include_interface": ["__LAN_IFACE__"],
       "strict_route": false,
       "stack": "system",
       "endpoint_independent_nat": false,
@@ -76,30 +76,36 @@
       "auth_key": "__ROUTER_HEADSCALE_AUTH_KEY__",
       "control_url": "__ROUTER_HEADSCALE_CTL_URL__",
       "hostname": "r3s-alpine-router-beijing",
-      "advertise_routes": ["192.168.8.0/24"]
+      "advertise_routes": ["__LAN_NET__"]
     }
   ],
 
   "outbounds": [
     {
-      "type": "socks",
-      "tag": "ss-out",
-      "server": "192.168.8.180",
-      "server_port": 1080,
-      "version": "5"
-    },
-    {
       "type": "direct",
       "tag": "direct-out"
     },
     {
-      "type": "block",
-      "tag": "block"
+      "type": "direct",
+      "tag": "yunshu-dns",
+      "bind_interface": "tun0"
+    },
+    {
+      "type": "bridge",
+      "tag": "yunshu-bridge",
+      "interface": "tun0",
+      "bridge_name": "sbbr",
+      "iproute2_table_index": 2200,
+      "iproute2_rule_index": 500
     }
   ],
 
   "route": {
-    "rules":[
+    "rules": [
+      {
+        "inbound": ["dns-in"],
+        "action": "hijack-dns"
+      },
       {
         "action": "sniff"
       },
@@ -108,68 +114,55 @@
         "action": "hijack-dns"
       },
       {
-        "source_ip_cidr": ["192.168.8.180/32"],
-        "outbound": "direct-out"
+        "preferred_by": ["yunshu-bridge"],
+        "rule_set": ["yunshu-domains"],
+        "action": "route",
+        "outbound": "yunshu-bridge"
       },
       {
-        "protocol": "bittorrent",
-        "outbound": "direct-out"
-      },
-      {
-        "rule_set": ["adblock-reject", "geosite-ads", "adblock-cnlite"],
-        "outbound": "block"
-      },
-      {
-        "rule_set": ["proxy-list"],
-        "outbound": "ss-out"
+        "preferred_by": ["yunshu-bridge"],
+        "ip_cidr": ["198.18.0.0/15"],
+        "action": "route",
+        "outbound": "yunshu-bridge"
       },
       {
         "process_path": ["/usr/sbin/tailscaled", "/usr/bin/tailscale"],
+        "action": "route",
         "outbound": "direct-out"
       },
       {
         "ip_cidr": ["100.64.0.0/10"],
+        "action": "route",
         "outbound": "hs-aliyun"
       },
       {
         "ip_is_private": true,
+        "action": "route",
         "outbound": "direct-out"
       },
       {
+        "action": "route",
         "outbound": "direct-out"
       }
     ],
     "rule_set": [
       {
-        "tag": "adblock-reject",
+        "tag": "yunshu-domains",
         "type": "local",
-        "format": "binary",
-        "path": "/etc/sing-box/rules/adblock_reject.srs"
+        "format": "source",
+        "path": "/etc/sing-box/rules/yunshu-domains.json"
       },
       {
-        "tag": "geosite-ads",
+        "tag": "bypass-cidrs",
         "type": "local",
-        "format": "binary",
-        "path": "/etc/sing-box/rules/geosite-category-ads-all.srs"
-      },
-      {
-        "tag": "adblock-cnlite",
-        "type": "local",
-        "format": "binary",
-        "path": "/etc/sing-box/rules/adblocksingbox.srs"
-      },
-      {
-        "tag": "proxy-list",
-        "type": "local",
-        "format": "binary",
-        "path": "/etc/sing-box/rules/proxy_list.srs"
+        "format": "source",
+        "path": "/etc/sing-box/rules/bypass-cidrs.json"
       }
     ],
     "auto_detect_interface": true,
-    "default_domain_resolver": 
-      {
-         "server": "local"
-      },
+    "default_domain_resolver": {
+      "server": "local"
+    },
     "final": "direct-out"
   }
 }

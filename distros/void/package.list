@@ -28,6 +28,7 @@
 [pm] podman-compose
 
 # ========== sing-box ==========
-[pm] sing-box
+# 1.14+ 才支持 bridge outbound；Void 仓库版本不保证，直接下载上游二进制
+[dl@https://github.com/SagerNet/sing-box/releases/download/v1.14.4/sing-box-1.14.4-linux-arm64.tar.gz] sing-box
 
 # ========== landscape ==========

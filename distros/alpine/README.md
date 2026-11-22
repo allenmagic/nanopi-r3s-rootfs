@@ -18,6 +18,34 @@ sudo BUILD_BASE=/tmp/my-build ROOT_PASSWORD=secret \
   HOSTNAME_VAL=my-router ./distros/alpine/build.sh
 ```
 
+## sing-box + yunshu（基础网络）
+
+```bash
+# sing-box 1.14.4（bridge outbound）+ podman yunshu
+sudo INFRA=sing-box PACK=1 ./distros/alpine/build.sh
+```
+
+- `dnsmasq` 只做 DHCP（`port=0`）；DNS 由 sing-box 的 `dns-in` 接管。
+- LAN 流量由 `auto_redirect` 送进 `singtun0`，默认出口 `direct-out`。
+- 只有 `/etc/sing-box/rules/yunshu-domains.txt` 命中的域名：
+  - DNS 问 yunshu 的 `10.251.1.1`，拿 fake-IP；
+  - 数据经 `bridge` 出站送到 yunshu 的 `tun0`。
+- yunshu 使用 podman `network_mode: host`，固定创建 `tun0`；sing-box 使用
+  `singtun0`，两者不能同名。
+- netavark 固定 nftables：`/etc/containers/containers.conf.d/50-netavark-nftables.conf`。
+- 内核建议 `kernel_mode=full`（容器栈 + `NFT_FIB_INET`，纯 nftables，无 iptables）。
+
+域名清单运维：
+
+```sh
+yunshu-domain list
+yunshu-domain add corp.example.com
+yunshu-domain del corp.example.com
+yunshu-domain apply
+```
+
+详细数据流与验收见 [docs/singbox-yunshu-base.md](../../docs/singbox-yunshu-base.md)。
+
 ## Landscape Router
 
 ```bash
@@ -49,7 +77,7 @@ socket，并在 `landscape-router` 启动前把 `/var/run/docker.sock` 链到 `/
 |----|------|
 | base | openssh, chrony, curl, bash, busybox-openrc, podman … |
 | base-net | dnsmasq, nftables, tailscale, cloudflared(\*) —— landscape 模式整段跳过 |
-| sing-box | sing-box |
+| sing-box | 上游 v1.14.4 arm64 二进制（`[dl@URL]`，bridge outbound 需要 ≥1.14） |
 | landscape | unzip（二进制与前端资源由 `landscape/install.sh` 下载） |
 
 (\*) cloudflared 通过 `[dl@URL]` 下载安装。段的匹配顺序敏感：`base-net` 必须排在 `base` 之前。

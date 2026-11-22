@@ -2,7 +2,7 @@
 
 name="sing-box"
 description="sing-box service"
-command="/usr/bin/sing-box"
+command="/usr/local/bin/sing-box"
 command_args="run -c /etc/sing-box/config.json"
 command_user="root:root"
 command_background=true
@@ -10,9 +10,14 @@ pidfile="/var/run/sing-box.pid"
 
 depend() {
     need net
-    after firewall
+    after nftables dnsmasq yunshu
+    use logger
 }
 
 start_pre() {
+    # 从 txt 重新生成 yunshu-domains.json（编辑过清单但没 apply 也能生效）
+    if [ -x /usr/local/bin/yunshu-domain ]; then
+        /usr/local/bin/yunshu-domain render || return 1
+    fi
     ${command} check -c /etc/sing-box/config.json || return 1
 }

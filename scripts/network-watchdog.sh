@@ -117,7 +117,7 @@ check_and_restart() {
     fi
 
     # 重启路由服务
-    for svc in nftables dnsmasq sing-box tailscale tailscaled cloudflared; do
+    for svc in nftables dnsmasq yunshu sing-box tailscale tailscaled cloudflared; do
         if rc-service --exists "$svc" 2>/dev/null || \
            [ -f "/etc/init.d/$svc" ] || \
            systemctl list-unit-files "${svc}.service" 2>/dev/null | grep -q "$svc"; then

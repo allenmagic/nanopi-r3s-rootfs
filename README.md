@@ -83,7 +83,7 @@ sudo INFRA=landscape ./distros/alpine/build.sh
 | INFRA 值 | DNS | 包含服务 |
 |----------|-----|---------|
 | `base` | dnsmasq（阿里云 + 腾讯上游） | ssh / chrony / nftables / dnsmasq / tailscale / cloudflared |
-| `sing-box` | sing-box DNS server | 同上 + sing-box（dnsmasq 关闭 DNS，仅保留 DHCP） |
+| `sing-box` | sing-box DNS（仅清单域名问 yunshu，其余本地） | 同上 + sing-box + podman yunshu（dnsmasq 关闭 DNS，仅保留 DHCP；LAN 全量进 `singtun0`，默认 `direct-out`） |
 | `landscape` | landscape 自带 DNS server | ssh / chrony / landscape-router（**不装** dnsmasq / nftables / tailscale / cloudflared） |
 
 > `landscape` 与 base 网络栈互斥：landscape 要占 `:53`、自己管防火墙和路由，两者同时跑会互相打架。

@@ -67,4 +67,13 @@ _replace_placeholders() {
             -e "s|__LAN_NET__|${LAN_NETWORK}|g" \
             "${_NFT}"
     fi
+    # sing-box config / rule sets（仅 INFRA=sing-box 时存在）
+    for _f_ in /etc/sing-box/config.json /etc/sing-box/rules/*.json; do
+        [ -f "${_f_}" ] || continue
+        sed -i \
+            -e "s|__LAN_IP__|${LAN_IP}|g" \
+            -e "s|__LAN_NET__|${LAN_NETWORK}|g" \
+            -e "s|__LAN_IFACE__|${LAN_IFACE}|g" \
+            "${_f_}"
+    done
 }
