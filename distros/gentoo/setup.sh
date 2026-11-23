@@ -5,7 +5,7 @@
 #
 set -eu
 
-ROOT_PASSWORD="${ROOT_PASSWORD:-root}"
+ROOT_PASSWORD="${ROOT_PASSWORD:-}"
 HOSTNAME_VAL="${HOSTNAME_VAL:-nanopi-r3s-gentoo}"
 TARGET_ROOTFS="${TARGET_ROOTFS:-/gentoo-rootfs}"
 SERIAL_DEV="${SERIAL_DEV:-ttyS2}"
@@ -484,10 +484,15 @@ configure_network
 # ============================================================
 echo "[setup] === 系统设置 ==="
 
-echo "[setup] 设置 root 密码 ..."
-# 生成密码哈希（在 stage3 环境）并更新目标 shadow
-_hash_="$(openssl passwd -6 "${ROOT_PASSWORD}")"
-sed -i "s|^root:[^:]*:|root:${_hash_}:|" "${TARGET_ROOTFS}/etc/shadow"
+if [ -n "${ROOT_PASSWORD}" ]; then
+    echo "[setup] 设置 root 密码 ..."
+    # 生成密码哈希（在 stage3 环境）并更新目标 shadow
+    _hash_="$(openssl passwd -6 "${ROOT_PASSWORD}")"
+    sed -i "s|^root:[^:]*:|root:${_hash_}:|" "${TARGET_ROOTFS}/etc/shadow"
+else
+    echo "[setup] 未提供 root 密码，锁定 root（由 img 阶段注入）"
+    sed -i 's|^root:[^:]*:|root:!:|' "${TARGET_ROOTFS}/etc/shadow"
+fi
 
 echo "[setup] 允许 SSH 密码登录 ..."
 /bin/sh "${SCRIPT_DIR}/scripts/enable-ssh-password.sh" "${TARGET_ROOTFS}"

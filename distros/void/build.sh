@@ -60,7 +60,7 @@ fi
 # XBPS_STATIC_URL 从 mirror base 推导，也可单独指定覆盖（按目标架构选择）
 XBPS_STATIC_URL="${XBPS_STATIC_URL:-${_MIRROR_BASE%/current/*}/static/xbps-static-latest.${ARCH}-musl.tar.xz}"
 unset _REPO_IN _MIRROR_BASE
-ROOT_PASSWORD="${ROOT_PASSWORD:-root}"             # CI Secret，未设默认 root
+ROOT_PASSWORD="${ROOT_PASSWORD:-}"             # CI Secret，未设默认 root
 HOSTNAME_VAL="${HOSTNAME_VAL:-nanopi-r3s-void}"
 SETUP_SCRIPT="${SCRIPT_DIR}/setup.sh"
 PACK="${PACK:-0}"                                  # 1=构建后顺带打包

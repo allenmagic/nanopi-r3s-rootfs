@@ -5,7 +5,7 @@
 #
 set -eu
 
-ROOT_PASSWORD="${ROOT_PASSWORD:-passwd123}"
+ROOT_PASSWORD="${ROOT_PASSWORD:-}"
 HOSTNAME_VAL="${HOSTNAME_VAL:-nanopi-r3s-devuan}"
 SUITE="${SUITE:-excalibur}"
 REPO="${REPO:-http://deb.devuan.org/merged}"
@@ -125,8 +125,13 @@ configure_network
 # ============================================================
 echo "[setup] === 系统设置 ==="
 
-echo "[setup] 设置 root 密码 ..."
-echo "root:${ROOT_PASSWORD}" | /usr/sbin/chpasswd
+if [ -n "${ROOT_PASSWORD}" ]; then
+    echo "[setup] 设置 root 密码 ..."
+    echo "root:${ROOT_PASSWORD}" | /usr/sbin/chpasswd
+else
+    echo "[setup] 未提供 root 密码，锁定 root（由 img 阶段注入）"
+    sed -i 's|^root:[^:]*:|root:!:|' /etc/shadow
+fi
 
 echo "[setup] 允许 SSH 密码登录 ..."
 /bin/sh /scripts/enable-ssh-password.sh

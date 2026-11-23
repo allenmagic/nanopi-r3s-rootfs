@@ -77,7 +77,7 @@
       "state_directory": "/etc/sing-box/headscale",
       "auth_key": "__ROUTER_HEADSCALE_AUTH_KEY__",
       "control_url": "__ROUTER_HEADSCALE_CTL_URL__",
-      "hostname": "nanopi-r3s-beijing",
+      "hostname": "__ROUTER_HOSTNAME__",
       "advertise_routes": ["__LAN_NET__"]
     }
   ],

@@ -37,7 +37,7 @@ case "${ARCH}" in
 esac
 
 MIRROR="${MIRROR:-https://distfiles.gentoo.org/releases/${GENTOO_ARCH}/autobuilds}"
-ROOT_PASSWORD="${ROOT_PASSWORD:-root}"
+ROOT_PASSWORD="${ROOT_PASSWORD:-}"
 HOSTNAME_VAL="${HOSTNAME_VAL:-nanopi-r3s-gentoo}"
 SETUP_SCRIPT="${SCRIPT_DIR}/setup.sh"
 PACK="${PACK:-0}"

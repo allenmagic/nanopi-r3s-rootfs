@@ -102,10 +102,14 @@ sudo INFRA=landscape ./distros/alpine/build.sh
 | `ARCH` | `aarch64` | 目标架构 |
 | `INFRA` | `base` | 路由组件选择，参见上节 |
 | `PACK` | `0` | `1` 时构建后打包 `.tar.xz` |
-| `ROOT_PASSWORD` | `root` | root 用户密码 |
-| `HOSTNAME_VAL` | `nanopi-r3s-<distro>` | 主机名 |
+| `ROOT_PASSWORD` | 空 | root 用户密码；未设置时锁定 root（由 img 阶段注入） |
+| `HOSTNAME_VAL` | `nanopi-r3s-<distro>` | 主机名（rootfs 阶段解析，也用于 sing-box Tailscale hostname） |
 
-### 密钥注入（可选）
+### 密钥注入（可选，仅本地手工构建）
+
+> **CI 构建不再传入个人 secret**；rootfs release 保持干净（root 锁定、无 key/token）。
+> 个人密码、SSH key、Tailscale/Headscale/Cloudflared token 统一在 **img 阶段**注入。
+> 以下变量仅用于本地手工构建 rootfs。
 
 以下变量全部可选，未设则跳过对应的密钥部署。
 

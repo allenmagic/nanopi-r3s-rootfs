@@ -27,7 +27,7 @@ ROOTFS="${ROOTFS:-${BUILD_BASE}/alpine-rootfs}"
 CACHE_DIR="${CACHE_DIR:-${BUILD_BASE}/cache}"
 MIRROR="${MIRROR:-https://dl-cdn.alpinelinux.org/alpine}"
 ARCH="${ARCH:-aarch64}"
-ROOT_PASSWORD="${ROOT_PASSWORD:-root}"
+ROOT_PASSWORD="${ROOT_PASSWORD:-}"
 HOSTNAME_VAL="${HOSTNAME_VAL:-nanopi-r3s-alpine}"
 SETUP_SCRIPT="${SCRIPT_DIR}/setup.sh"
 PACK="${PACK:-0}"                                            # 1=构建后顺带打包

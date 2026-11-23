@@ -55,6 +55,7 @@ _replace_placeholders() {
             -e "s|__LAN_IP__|${LAN_IP}|g" \
             -e "s|__LAN_NET__|${LAN_NETWORK}|g" \
             -e "s|__LAN_IFACE__|${LAN_IFACE}|g" \
+            -e "s|__ROUTER_HOSTNAME__|${HOSTNAME_VAL}|g" \
             "${_f_}"
     done
 }

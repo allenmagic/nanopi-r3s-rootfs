@@ -32,6 +32,11 @@ on:
         required: true
         default: default
         options: [default, tuna]
+      hostname:
+        description: "设备主机名（也用于 sing-box Tailscale hostname）"
+        type: string
+        required: true
+        default: nanopi-r3s-beijing
 
 permissions:
   contents: write
@@ -94,12 +99,7 @@ jobs:
       ARCH: ${{ matrix.arch }}
       PACK: "1"
       REPO: ${{ inputs.mirror }}
-      ROOT_PASSWORD: ${{ secrets.ROOT_PASSWORD }}
-      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-      SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
-      TAILSCALE_AUTH_KEY: ${{ secrets.TAILSCALE_AUTH_KEY }}
-      HEADSCALE_AUTH_KEY: ${{ secrets.HEADSCALE_AUTH_KEY }}
-      CLOUDFLARED_TOKEN: ${{ secrets.CLOUDFLARED_TOKEN }}
+      HOSTNAME_VAL: ${{ inputs.hostname }}
     steps:
       - uses: actions/checkout@v6
 

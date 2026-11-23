@@ -56,6 +56,37 @@ check_rootfs() {
         echo "  ✗ inittab 无激活串口 getty 行!"; _FAIL=$((_FAIL + 1))
     fi
 
+    echo "[check] 密钥/默认值:"
+    _has_secret=0
+    [ -n "${SSH_PRIVATE_KEY:-}" ]  && _has_secret=1
+    [ -n "${SSH_PUBLIC_KEY:-}" ]   && _has_secret=1
+    [ -n "${TAILSCALE_AUTH_KEY:-}" ] && _has_secret=1
+    [ -n "${HEADSCALE_AUTH_KEY:-}" ] && _has_secret=1
+    [ -n "${CLOUDFLARED_TOKEN:-}" ]  && _has_secret=1
+
+    if [ -z "${ROOT_PASSWORD:-}" ]; then
+        if grep -q '^root:!:' /etc/shadow 2>/dev/null; then
+            echo "  ✓ root 已锁定（rootfs 不写密码）"; _OK=$((_OK + 1))
+        else
+            echo "  ✗ root 密码未锁定!"; _FAIL=$((_FAIL + 1))
+        fi
+    else
+        echo "  (ROOT_PASSWORD 已提供，跳过 root 锁定检查)"; _OK=$((_OK + 1))
+    fi
+
+    if [ "${_has_secret}" -eq 0 ]; then
+        _leak_=0
+        for _f_ in /root/.ssh/id_ed25519 /etc/tailscale/authkey /etc/cloudflared/config.yml; do
+            if [ -e "${_f_}" ]; then
+                echo "  ✗ 无 secret 构建却存在 ${_f_}"
+                _FAIL=$((_FAIL + 1)); _leak_=1
+            fi
+        done
+        [ "${_leak_}" -eq 0 ] && { echo "  ✓ 无个人密钥残留"; _OK=$((_OK + 1)); }
+    else
+        echo "  (提供了个人 key/token，跳过清洁检查)"; _OK=$((_OK + 1))
+    fi
+
     # sing-box 仅在 INFRA=sing-box 时检查
     case ",${INFRA:-base}," in *",sing-box,"*)
         _check_bin sing-box
@@ -150,6 +181,16 @@ check_rootfs() {
             echo "  ✓ sing-box TUN = singtun0"; _OK=$((_OK + 1))
         else
             echo "  ✗ sing-box TUN 未使用 singtun0（会与 yunshu tun0 冲突）"
+            _FAIL=$((_FAIL + 1))
+        fi
+
+        if grep -q '__ROUTER_HOSTNAME__' /etc/sing-box/config.json 2>/dev/null; then
+            echo "  ✗ sing-box hostname 占位符未替换"; _FAIL=$((_FAIL + 1))
+        elif [ -n "${HOSTNAME_VAL:-}" ] && \
+             grep -q "\"hostname\": \"${HOSTNAME_VAL}\"" /etc/sing-box/config.json 2>/dev/null; then
+            echo "  ✓ sing-box Tailscale hostname = ${HOSTNAME_VAL}"; _OK=$((_OK + 1))
+        else
+            echo "  ✗ sing-box Tailscale hostname 与 HOSTNAME_VAL 不一致"
             _FAIL=$((_FAIL + 1))
         fi
 

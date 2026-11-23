@@ -28,7 +28,7 @@ CACHE_DIR="${CACHE_DIR:-${BUILD_BASE}/cache}"                # apt 缓存（复�
 ARCH="${ARCH:-arm64}"                                        # Debian/Devuan 架构名
 SUITE="${SUITE:-excalibur}"                                  # Devuan 稳定版
 COMPONENTS="${COMPONENTS:-main}"
-ROOT_PASSWORD="${ROOT_PASSWORD:-root}"                       # CI Secret，未设默认 root
+ROOT_PASSWORD="${ROOT_PASSWORD:-}"                       # CI Secret，未设默认 root
 HOSTNAME_VAL="${HOSTNAME_VAL:-nanopi-r3s-devuan}"
 SETUP_SCRIPT="${SCRIPT_DIR}/setup.sh"
 PACK="${PACK:-0}"                                            # 1=构建后顺带打包

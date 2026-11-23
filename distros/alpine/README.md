@@ -69,6 +69,10 @@ socket，并在 `landscape-router` 启动前把 `/var/run/docker.sock` 链到 `/
 
 刷机后：Web 管理端 `http://192.168.8.1:6300`，用户 `admin`，密码为构建时的 `ROOT_PASSWORD`。
 
+> 普通 `INFRA=sing-box` 的 rootfs 构建不再接收 `ROOT_PASSWORD`，默认锁定 root；
+> 密码由 img 阶段注入。`landscape` 模式例外：它用 `ROOT_PASSWORD` 作为 Web admin 密码，
+> 构建 landscape rootfs 时仍需显式提供（不要把带该密码的 rootfs 作为公开 release）。
+
 ## 包列表
 
 `distros/alpine/package.list` — 四段式：
