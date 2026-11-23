@@ -1,0 +1,11 @@
+# BusyBox syslogd：日志写到 tmpfs（/run），避免 SD 卡写入
+#
+# -t                原始配置保留的参数（BusyBox syslogd 的简略格式）
+# -O /run/messages  日志文件放在 /run（tmpfs），重启即清空，不落 SD
+# -s 1M             单个日志文件上限 1 MiB；syslogd 会轮转/截断，
+#                   总量固定在 ~2 MiB 以内，不会无限占内存
+#
+# 需要查看日志时：
+#   logread
+#   cat /run/messages
+SYSLOGD_OPTS="-t -O /run/messages -s 1M"

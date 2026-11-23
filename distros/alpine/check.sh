@@ -87,6 +87,24 @@ check_rootfs() {
         echo "  (提供了个人 key/token，跳过清洁检查)"; _OK=$((_OK + 1))
     fi
 
+    echo "[check] 日志与写盘:"
+    if grep -q 'SYSLOGD_OPTS=.*-O /run/messages' /etc/conf.d/syslog 2>/dev/null; then
+        echo "  ✓ syslogd 输出到 /run/messages (tmpfs)"; _OK=$((_OK + 1))
+    else
+        echo "  ✗ syslogd 未输出到 /run/messages"; _FAIL=$((_FAIL + 1))
+    fi
+    if [ -f /etc/sing-box/config.json ]; then
+        if grep -q '"level": "error"' /etc/sing-box/config.json && \
+           grep -q '"output": "/dev/null"' /etc/sing-box/config.json && \
+           ! grep -q '"experimental"' /etc/sing-box/config.json; then
+            echo "  ✓ sing-box 日志 error + /dev/null，无 cache_file"
+            _OK=$((_OK + 1))
+        else
+            echo "  ✗ sing-box 日志/缓存配置不符合预期"
+            _FAIL=$((_FAIL + 1))
+        fi
+    fi
+
     # sing-box 仅在 INFRA=sing-box 时检查
     case ",${INFRA:-base}," in *",sing-box,"*)
         _check_bin sing-box

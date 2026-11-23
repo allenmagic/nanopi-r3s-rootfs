@@ -1,7 +1,8 @@
 {
   "log": {
-    "level": "info",
-    "timestamp": true
+    "level": "error",
+    "timestamp": true,
+    "output": "/dev/null"
   },
 
   "dns": {
@@ -29,13 +30,6 @@
     "final": "local",
     "cache_capacity": 8192,
     "strategy": "ipv4_only"
-  },
-
-  "experimental": {
-    "cache_file": {
-      "enabled": false,
-      "path": "/var/lib/sing-box/cache.db"
-    }
   },
 
   "inbounds": [
