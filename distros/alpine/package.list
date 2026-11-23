@@ -36,10 +36,10 @@
 [dl@https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64] cloudflared
 
 # ========== sing-box ==========
-# 1.14+ 才支持 bridge outbound；Alpine 仓库仍是 1.13.x，直接下载上游 musl 变体。
-# 注意：不能用 generic linux-arm64.tar.gz —— 它是 glibc 动态链接，Alpine 跑不了。
-# _dl_url 会自动解压 .tar.gz 并安装到 /usr/local/bin/sing-box。
-[dl@https://github.com/SagerNet/sing-box/releases/download/v1.14.4/sing-box-1.14.4-linux-arm64-musl.tar.gz] sing-box
+# 自定义精简构建（仓库：allenmagic/nanopi-r3s-sing-box）：
+#   with_gvisor,with_quic,with_wireguard,with_tailscale,with_cloudflared
+# 纯 Go 静态 arm64，Alpine/glibc 通用，无需区分 musl/glibc 变体。
+[dl@https://github.com/allenmagic/nanopi-r3s-sing-box/releases/download/sing-box-router-v1.14.4/sing-box-router-linux-arm64] sing-box
 
 # ========== landscape ==========
 # 二进制与前端资源不走包管理器（要解 static.zip、并用同版本二进制生成

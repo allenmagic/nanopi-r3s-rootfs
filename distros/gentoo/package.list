@@ -35,7 +35,7 @@
 [dl@https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64] cloudflared
 
 # ========== sing-box ==========
-[dl@https://github.com/SagerNet/sing-box/releases/download/v1.14.4/sing-box-1.14.4-linux-arm64.tar.gz] sing-box
+[dl@https://github.com/allenmagic/nanopi-r3s-sing-box/releases/download/sing-box-router-v1.14.4/sing-box-router-linux-arm64] sing-box
 
 
 # ========== landscape ==========

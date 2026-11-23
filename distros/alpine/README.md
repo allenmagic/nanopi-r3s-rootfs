@@ -81,7 +81,7 @@ socket，并在 `landscape-router` 启动前把 `/var/run/docker.sock` 链到 `/
 |----|------|
 | base | openssh, chrony, curl, bash, busybox-openrc, podman … |
 | base-net | dnsmasq, nftables, tailscale, cloudflared(\*) —— landscape 模式整段跳过 |
-| sing-box | 上游 v1.14.4 arm64 二进制（`[dl@URL]`，bridge outbound 需要 ≥1.14） |
+| sing-box | 自定义精简构建（`nanopi-r3s-sing-box`，静态 arm64，bridge outbound 需要 ≥1.14） |
 | landscape | unzip（二进制与前端资源由 `landscape/install.sh` 下载） |
 
 (\*) cloudflared 通过 `[dl@URL]` 下载安装。段的匹配顺序敏感：`base-net` 必须排在 `base` 之前。
