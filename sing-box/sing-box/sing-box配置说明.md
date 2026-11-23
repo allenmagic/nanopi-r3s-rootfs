@@ -66,14 +66,22 @@ yunshu-domain apply
   "auto_redirect": true,
   "route_exclude_address": ["10.251.1.1/32", "__LAN_NET__"],
   "route_exclude_address_set": ["bypass-cidrs"],
-  "include_interface": ["__LAN_IFACE__"]
+  "include_interface": ["__LAN_IFACE__"],
+  "exclude_interface": ["tun0"],
+  "exclude_uid": [0]
 }
 ```
 
 - **接口名必须是 `singtun0`**，yunshu 固定占用 `tun0`；
 - `auto_redirect` 把 LAN 流量送进 `singtun0`；
 - 只排除 `10.251.1.1/32`（sing-box 自己的 tunnel DNS 查询）和 LAN 网段；
-  fake-IP 必须进 sing-box，才能由它分给 yunshu。
+  fake-IP 必须进 sing-box，才能由它分给 yunshu；
+- **防回环**：
+  - `exclude_interface: ["tun0"]`：从 yunshu TUN 进入的包不再被 `singtun0` 抓取；
+  - `exclude_uid: [0]`：rootful podman 下 yunshu 的本地 output（外层隧道/控制面/DNS）
+    不进入 `singtun0`，避免被 `yunshu-domains` 再次送回 `tun0`；
+  - 不使用 `process_name`（逐连接查进程，开销高）；
+  - rootless/userns 场景按实际映射 UID 调整 `exclude_uid`。
 
 ## 5. 出站
 

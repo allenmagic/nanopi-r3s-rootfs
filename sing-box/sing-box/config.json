@@ -53,12 +53,14 @@
       "mtu": 1280,
       "auto_route": true,
       "auto_redirect": true,
+      "exclude_uid": [0],
       "route_exclude_address": [
         "10.251.1.1/32",
         "__LAN_NET__"
       ],
       "route_exclude_address_set": ["bypass-cidrs"],
       "include_interface": ["__LAN_IFACE__"],
+      "exclude_interface": ["tun0"],
       "strict_route": false,
       "stack": "system",
       "endpoint_independent_nat": false,

@@ -38,6 +38,27 @@ LAN 客户端
 `sing-box` 与 `yunshu` 都创建 TUN，**必须使用不同接口名**。yunshu 的 headless
 payload 固定创建 `tun0`，因此 sing-box 使用 `singtun0`。
 
+### 防止 pod 流量回环
+
+yunshu 的 `tun0` 只应承担两件事：
+
+- 接收 sing-box `bridge` 送来的 LAN fake-IP 包；
+- 把解密后的回程写回内核。
+
+它产生的流量**不能再被 `singtun0` 吸进去处理**，否则会形成
+`tun0 → singtun0 → bridge → tun0` 的回环。配置里用两层防护：
+
+```json
+"exclude_interface": ["tun0"],
+"exclude_uid": [0]
+```
+
+- `exclude_interface: ["tun0"]`：从 `tun0` 进入的包不再被 auto_route/auto_redirect 抓取；
+- `exclude_uid: [0]`：rootful podman 下 yunshu 进程的本地 output（外层隧道、控制面、bootstrap DNS）不进入 `singtun0`；
+- 默认出口仍是 `direct-out`，只有 `198.18.0.0/15` 和 `10.251.1.1/32` 相关流量进入 `tun0`；
+- **不要用 `process_name` 做逐连接匹配**，开销高，R3S 上不划算；
+- 如果改成 rootless / userns 容器，按实际映射的宿主机 UID 调整 `exclude_uid`，或给 yunshu 使用专用 UID。
+
 ## 服务顺序
 
 ```text
