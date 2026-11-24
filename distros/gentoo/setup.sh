@@ -82,7 +82,14 @@ mkdir -p /etc/portage
 # HOST_ARCH 由 build.sh 传入（宿主的架构）
 # 若宿主本身是 aarch64，则为原生 ARM64 编译，可安全多核
 # 若宿主是 x86_64 等，则为 QEMU 跨架构编译，需限制并发
-if [ "${HOST_ARCH:-}" = "aarch64" ] || [ "${HOST_ARCH:-}" = "arm64" ]; then
+if [ "${CI:-}" = "true" ]; then
+    # GitHub ARM runner 的 PTY 配额较低：sandbox/userpriv 会 openpty 失败，
+    # 并串行 emerge，避免并发 portage 进程耗尽 pty。
+    _NATIVE_ARM_="1"
+    _MAKEOPTS_="-j${_NPROC_}"
+    _EMERGE_JOBS_="1"
+    _FEATURES_="-getbinpkg -sandbox -usersandbox -userpriv -ipc-sandbox -network-sandbox -pid-sandbox"
+elif [ "${HOST_ARCH:-}" = "aarch64" ] || [ "${HOST_ARCH:-}" = "arm64" ]; then
     _NATIVE_ARM_="1"
     _MAKEOPTS_="-j${_NPROC_}"
     _EMERGE_JOBS_="${_NPROC_}"
@@ -93,7 +100,7 @@ else
     _MAKEOPTS_="-j1"
     _EMERGE_JOBS_="1"
     # QEMU/WSL2：禁用 sandbox（/dev/pts 无法正常挂载，PTY 会耗尽）
-    _FEATURES_="-getbinpkg -sandbox -usersandbox -ipc-sandbox -network-sandbox -pid-sandbox"
+    _FEATURES_="-getbinpkg -sandbox -usersandbox -userpriv -ipc-sandbox -network-sandbox -pid-sandbox"
 fi
 
 # 并行度由 build-local.sh 指定（绕开 QEMU 的 -j1；CI 不传，走上面的架构默认）
@@ -240,6 +247,11 @@ if [ -f "${_PKG_LIST_}" ]; then
 else
     echo "[setup] 警告: ${_PKG_LIST_} 不存在" >&2
 fi
+
+# ROOT=emerge 的编译临时目录在 stage3（不是 target rootfs）；先确保存在，
+# 否则 PORTAGE_TMPDIR 的 lock-helper 会报 DirectoryNotFound: /var/tmp/portage/<pkg>。
+mkdir -p /var/tmp/portage
+chmod 1777 /var/tmp/portage 2>/dev/null || true
 
 # 批量 emerge 安装到 ROOT
 # 默认 --binpkg-respect-use=y：拒绝 USE 不匹配的 binpkg，避免 systemd/GNOME 依赖链

@@ -219,6 +219,7 @@ chroot_run "${STAGE3_DIR}" /usr/bin/env \
     TARGET_ROOTFS="/gentoo-rootfs" \
     GENTOO_MIRROR_BASE="${GENTOO_MIRROR_BASE}" \
     HOST_ARCH="${HOST_ARCH}" \
+    CI="${CI:-}" \
     MAKE_JOBS="${MAKE_JOBS}" \
     PKGDIR="${PKGDIR}" \
     SCRIPT_DIR="/" \
