@@ -283,6 +283,17 @@ if [ -f "${_PKG_LIST_}" ]; then
                 # 复用共享下载助手，DESTDIR 指向目标 rootfs
                 DESTDIR="${TARGET_ROOTFS}/usr/local/bin" _dl_url "${_url_}" "${_bin_}"
                 ;;
+            '[fw@'*)
+                _line_="${_line_#\[fw@}"
+                _url_="${_line_%%\] *}"
+                _rel_="${_line_#*\] }"
+                _fwdir_="$(dirname "${_rel_}")"
+                _fwfile_="$(basename "${_rel_}")"
+                [ "${_fwdir_}" = "." ] && _fwdir_=""
+                mkdir -p "${TARGET_ROOTFS}/lib/firmware/${_fwdir_}"
+                echo "[setup]   [fw@${_rel_}]"
+                DESTDIR="${TARGET_ROOTFS}/lib/firmware/${_fwdir_}" _dl_url "${_url_}" "${_fwfile_}"
+                ;;
         esac
     done < "${_PKG_LIST_}"
 fi
@@ -367,9 +378,11 @@ cat > "${TARGET_ROOTFS}/etc/init.d/syslog" <<'INITEOF'
 description="Busybox syslog daemon"
 
 start() {
+    # 与 Alpine 一致：日志写 tmpfs /run/messages，避免 SD 卡写入
+    [ -f /etc/conf.d/syslog ] && . /etc/conf.d/syslog
     ebegin "Starting syslogd"
     start-stop-daemon --start --quiet \
-        --exec /bin/busybox -- syslogd -L -s 200 -b 2
+        --exec /bin/busybox -- syslogd ${SYSLOGD_OPTS:--O /run/messages -s 1M}
     eend $?
 }
 
@@ -388,9 +401,10 @@ description="Busybox cron daemon"
 
 start() {
     ebegin "Starting crond"
+    # 日志走 syslog（tmpfs），不再写 /var/log/crond.log
     start-stop-daemon --start --quiet \
         --make-pidfile --pidfile /run/crond.pid \
-        --exec /bin/busybox -- crond -l 0 -L /var/log/crond.log
+        --exec /bin/busybox -- crond -l 0
     eend $?
 }
 
@@ -435,6 +449,14 @@ _deploy_cfg_ base
 # sing-box 模式叠加部署 sing-box/
 case "${INFRA:-base}" in sing-box) _deploy_cfg_ sing-box ;; esac
 
+# Gentoo 的 nftables init 默认读取 /var/lib/nftables/rules-save；
+# 本项目统一使用 /etc/nftables.nft（内含 /etc/nftables.d/*.nft）。
+# SAVE_ON_STOP=no 防止关机时把展开后的规则写回源文件。
+cat > "${TARGET_ROOTFS}/etc/conf.d/nftables" <<'EOF'
+NFTABLES_SAVE="/etc/nftables.nft"
+SAVE_ON_STOP="no"
+EOF
+
 # sysctl.d 的 `-key = value` 是 systemd-sysctl 语法（键不存在时静默跳过），
 # busybox sysctl 不认这个前缀 —— 整行被跳过，导致 ip_forward=1、fq/bbr 等
 # 关键项在本链上从未生效。构建期剥掉前缀；共享的 base/sysctl.d 保持原样
@@ -467,6 +489,10 @@ if [ -f "${SCRIPT_DIR}/scripts/rootfs-resize.sh" ]; then
     install -m 0755 "${SCRIPT_DIR}/scripts/rootfs-resize.sh" "${TARGET_ROOTFS}/usr/local/bin/rootfs-resize"
     echo "[setup]   已安装: rootfs-resize"
 fi
+if [ -f "${SCRIPT_DIR}/scripts/singbox-yunshu.sh" ]; then
+    install -m 0755 "${SCRIPT_DIR}/scripts/singbox-yunshu.sh" "${TARGET_ROOTFS}/usr/local/bin/yunshu-domain"
+    echo "[setup]   已安装: yunshu-domain"
+fi
 
 # 统一路径
 if [ ! -e "${TARGET_ROOTFS}/usr/local/bin/sing-box" ] && [ -x "${TARGET_ROOTFS}/usr/bin/sing-box" ]; then
@@ -478,6 +504,20 @@ fi
 # ============================================================
 . /network.sh
 configure_network
+
+# sing-box 模式：由域名清单生成规则集（提交的 JSON 是兜底，这里保证与 txt 同步）
+case ",${INFRA:-base}," in
+    *",sing-box,"*)
+        if [ -x "${TARGET_ROOTFS}/usr/local/bin/yunshu-domain" ] && \
+           [ -f "${TARGET_ROOTFS}/etc/sing-box/rules/yunshu-domains.txt" ]; then
+            echo "[setup] 生成 yunshu-domains.json ..."
+            YUNSHU_DOMAINS_TXT="${TARGET_ROOTFS}/etc/sing-box/rules/yunshu-domains.txt" \
+            YUNSHU_DOMAINS_JSON="${TARGET_ROOTFS}/etc/sing-box/rules/yunshu-domains.json" \
+            SINGBOX_CONF="${TARGET_ROOTFS}/etc/sing-box/config.json" \
+            /bin/sh "${SCRIPT_DIR}/scripts/singbox-yunshu.sh" render
+        fi
+        ;;
+esac
 
 # ============================================================
 #  4. 系统设置（在目标 rootfs 内配置）
