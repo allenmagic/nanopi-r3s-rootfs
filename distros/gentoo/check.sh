@@ -146,6 +146,162 @@ check_rootfs() {
         echo "  ✗ rc_cgroup_mode 未设 unified（podman 看不到控制器）"; _FAIL=$((_FAIL + 1))
     fi
 
+    # ---------- 7. Alpine 对齐检查 ----------
+    echo "[check] Alpine 对齐检查:"
+
+    # 7.1 运行时二进制
+    _check_bin podman /usr/bin/podman
+    _check_bin wan-mgmt /usr/local/bin/wan-mgmt
+    _check_bin vpn-routes /usr/local/bin/vpn-routes
+
+    # 7.2 RTL8169 固件
+    if [ -f "${TARGET_ROOTFS}/lib/firmware/rtl_nic/rtl8168h-2.fw" ]; then
+        echo "  ✓ rtl_nic/rtl8168h-2.fw"; _OK=$((_OK + 1))
+    else
+        echo "  ✗ rtl_nic/rtl8168h-2.fw 缺失"; _FAIL=$((_FAIL + 1))
+    fi
+
+    # 7.3 SSH / root / secret
+    if grep -qE '^[[:space:]]*PasswordAuthentication[[:space:]]+yes' "${TARGET_ROOTFS}/etc/ssh/sshd_config" 2>/dev/null && \
+       grep -qE '^[[:space:]]*PermitRootLogin[[:space:]]+yes' "${TARGET_ROOTFS}/etc/ssh/sshd_config" 2>/dev/null; then
+        echo "  ✓ sshd 允许密码登录"; _OK=$((_OK + 1))
+    else
+        echo "  ✗ sshd 未允许密码登录"; _FAIL=$((_FAIL + 1))
+    fi
+    if [ -z "${ROOT_PASSWORD:-}" ]; then
+        if grep -q '^root:!:' "${TARGET_ROOTFS}/etc/shadow" 2>/dev/null; then
+            echo "  ✓ root 已锁定（rootfs 不写密码）"; _OK=$((_OK + 1))
+        else
+            echo "  ✗ root 密码未锁定!"; _FAIL=$((_FAIL + 1))
+        fi
+    else
+        echo "  (ROOT_PASSWORD 已提供，跳过 root 锁定检查)"; _OK=$((_OK + 1))
+    fi
+    _has_secret=0
+    [ -n "${SSH_PRIVATE_KEY:-}" ] && _has_secret=1
+    [ -n "${SSH_PUBLIC_KEY:-}" ] && _has_secret=1
+    [ -n "${TAILSCALE_AUTH_KEY:-}" ] && _has_secret=1
+    [ -n "${HEADSCALE_AUTH_KEY:-}" ] && _has_secret=1
+    [ -n "${CLOUDFLARED_TOKEN:-}" ] && _has_secret=1
+    if [ "${_has_secret}" -eq 0 ]; then
+        _leak_=0
+        for _f_ in "${TARGET_ROOTFS}/root/.ssh/id_ed25519" \
+                    "${TARGET_ROOTFS}/etc/tailscale/authkey" \
+                    "${TARGET_ROOTFS}/etc/cloudflared/config.yml"; do
+            if [ -e "${_f_}" ]; then
+                echo "  ✗ 无 secret 构建却存在 ${_f_}"
+                _FAIL=$((_FAIL + 1)); _leak_=1
+            fi
+        done
+        [ "${_leak_}" -eq 0 ] && { echo "  ✓ 无个人密钥残留"; _OK=$((_OK + 1)); }
+    else
+        echo "  (提供了个人 key/token，跳过清洁检查)"; _OK=$((_OK + 1))
+    fi
+
+    # 7.4 日志与关键配置
+    if grep -q 'SYSLOGD_OPTS=.*-O /run/messages' "${TARGET_ROOTFS}/etc/conf.d/syslog" 2>/dev/null && \
+       grep -q '/etc/conf.d/syslog' "${TARGET_ROOTFS}/etc/init.d/syslog" 2>/dev/null; then
+        echo "  ✓ syslogd 输出到 /run/messages (tmpfs)"; _OK=$((_OK + 1))
+    else
+        echo "  ✗ syslogd 未输出到 /run/messages"; _FAIL=$((_FAIL + 1))
+    fi
+    if grep -q '/var/log/crond.log' "${TARGET_ROOTFS}/etc/init.d/crond" 2>/dev/null; then
+        echo "  ✗ crond 仍写 /var/log/crond.log"; _FAIL=$((_FAIL + 1))
+    else
+        echo "  ✓ crond 日志走 syslog"; _OK=$((_OK + 1))
+    fi
+    if grep -q '^port=0' "${TARGET_ROOTFS}/etc/dnsmasq.d/99-disable-dns-server.conf" 2>/dev/null; then
+        echo "  ✓ dnsmasq port=0（仅 DHCP）"; _OK=$((_OK + 1))
+    else
+        echo "  ✗ dnsmasq 未关闭 DNS（port=0）"; _FAIL=$((_FAIL + 1))
+    fi
+    if grep -q 'firewall_driver = "nftables"' "${TARGET_ROOTFS}/etc/containers/containers.conf.d/50-netavark-nftables.conf" 2>/dev/null; then
+        echo "  ✓ netavark 使用 nftables"; _OK=$((_OK + 1))
+    else
+        echo "  ✗ netavark 未固定 nftables"; _FAIL=$((_FAIL + 1))
+    fi
+    if grep -q 'NFTABLES_SAVE="/etc/nftables.nft"' "${TARGET_ROOTFS}/etc/conf.d/nftables" 2>/dev/null && \
+       grep -q 'SAVE_ON_STOP="no"' "${TARGET_ROOTFS}/etc/conf.d/nftables" 2>/dev/null; then
+        echo "  ✓ nftables 加载 /etc/nftables.nft"; _OK=$((_OK + 1))
+    else
+        echo "  ✗ nftables 未指向 /etc/nftables.nft"; _FAIL=$((_FAIL + 1))
+    fi
+    if [ -x "${TARGET_ROOTFS}/etc/local.d/10-rootfs-resize.start" ]; then
+        echo "  ✓ local.d rootfs-resize"; _OK=$((_OK + 1))
+    else
+        echo "  ✗ local.d rootfs-resize 缺失"; _FAIL=$((_FAIL + 1))
+    fi
+
+    # 7.5 OpenRC 对齐服务
+    _check_openrc hostname boot
+    _check_openrc local default
+    _check_openrc wan-mgmt
+
+    # 7.6 sing-box 细节
+    case ",${INFRA:-base}," in *",sing-box,"*)
+        echo "[check] sing-box:"
+        _check_bin yunshu-domain /usr/local/bin/yunshu-domain
+
+        _v_="$("${TARGET_ROOTFS}/usr/local/bin/sing-box" version 2>/dev/null | head -n1 | \
+               sed -n 's/.* \([0-9][0-9]*\.[0-9][0-9]*\)\..*/\1/p')"
+        if [ -n "${_v_}" ] && \
+           printf '%s\n' "${_v_}" | awk -F. '{exit !($1>1 || ($1==1 && $2>=14))}'; then
+            echo "  ✓ sing-box ${_v_} (>=1.14)"; _OK=$((_OK + 1))
+        else
+            echo "  ✗ sing-box 版本 ${_v_:-未知} < 1.14"; _FAIL=$((_FAIL + 1))
+        fi
+
+        for _f_ in /etc/sing-box/rules/yunshu-domains.json \
+                    /etc/sing-box/rules/yunshu-domains.txt \
+                    /etc/sing-box/rules/bypass-cidrs.json; do
+            if [ -f "${TARGET_ROOTFS}${_f_}" ]; then
+                echo "  ✓ ${_f_}"; _OK=$((_OK + 1))
+            else
+                echo "  ✗ ${_f_} 缺失!"; _FAIL=$((_FAIL + 1))
+            fi
+        done
+
+        if grep -q '"interface_name": "singtun0"' "${TARGET_ROOTFS}/etc/sing-box/config.json" 2>/dev/null; then
+            echo "  ✓ sing-box TUN = singtun0"; _OK=$((_OK + 1))
+        else
+            echo "  ✗ sing-box TUN 未使用 singtun0"; _FAIL=$((_FAIL + 1))
+        fi
+
+        if grep -q '__ROUTER_HOSTNAME__' "${TARGET_ROOTFS}/etc/sing-box/config.json" 2>/dev/null; then
+            echo "  ✗ sing-box hostname 占位符未替换"; _FAIL=$((_FAIL + 1))
+        elif [ -n "${HOSTNAME_VAL:-}" ] && \
+             grep -q "\"hostname\": \"${HOSTNAME_VAL}\"" "${TARGET_ROOTFS}/etc/sing-box/config.json" 2>/dev/null; then
+            echo "  ✓ sing-box Tailscale hostname = ${HOSTNAME_VAL}"; _OK=$((_OK + 1))
+        else
+            echo "  ✗ sing-box Tailscale hostname 与 HOSTNAME_VAL 不一致"; _FAIL=$((_FAIL + 1))
+        fi
+
+        if grep -q '"type": "bridge"' "${TARGET_ROOTFS}/etc/sing-box/config.json" 2>/dev/null; then
+            echo "  ✓ yunshu bridge outbound"; _OK=$((_OK + 1))
+        else
+            echo "  ✗ 缺少 yunshu bridge outbound"; _FAIL=$((_FAIL + 1))
+        fi
+
+        if grep -q '"level": "error"' "${TARGET_ROOTFS}/etc/sing-box/config.json" 2>/dev/null && \
+           grep -q '"output": "/dev/null"' "${TARGET_ROOTFS}/etc/sing-box/config.json" 2>/dev/null && \
+           ! grep -q '"experimental"' "${TARGET_ROOTFS}/etc/sing-box/config.json" 2>/dev/null; then
+            echo "  ✓ sing-box 日志 error + /dev/null，无 cache_file"; _OK=$((_OK + 1))
+        else
+            echo "  ✗ sing-box 日志/缓存配置不符合预期"; _FAIL=$((_FAIL + 1))
+        fi
+
+        if [ -x "${TARGET_ROOTFS}/usr/local/bin/sing-box" ]; then
+            [ -e "${TARGET_ROOTFS}/dev/null" ] || mknod "${TARGET_ROOTFS}/dev/null" c 1 3 2>/dev/null || true
+            [ -e "${TARGET_ROOTFS}/dev/urandom" ] || mknod "${TARGET_ROOTFS}/dev/urandom" c 1 9 2>/dev/null || true
+            [ -e "${TARGET_ROOTFS}/dev/random" ] || mknod "${TARGET_ROOTFS}/dev/random" c 1 8 2>/dev/null || true
+            if chroot "${TARGET_ROOTFS}" /usr/local/bin/sing-box check -c /etc/sing-box/config.json >/dev/null 2>&1; then
+                echo "  ✓ sing-box check"; _OK=$((_OK + 1))
+            else
+                echo "  ✗ sing-box check 失败"; _FAIL=$((_FAIL + 1))
+            fi
+        fi
+    ;; esac
+
     # ---------- 结果 ----------
     _TOTAL=$((_OK + _FAIL))
     echo "[check] === $_OK/$_TOTAL 通过 ==="

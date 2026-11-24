@@ -14,6 +14,10 @@ enable_router_services() {
     # 用 base/init/openrc/sysctl（覆盖发行版自带版本，见该文件注释）。
     _enable_service sysctl boot
     _enable_service bootmisc boot
+    _enable_service hostname boot
+    _enable_service cgroups sysinit
+    # local: /etc/local.d/*.start（LED、rootfs-resize、hw-tweak）
+    _enable_service local default
     # 服务名是 syslog 不是 syslogd：init 脚本由 ../gentoo/setup.sh 生成为
     # /etc/init.d/syslog（busybox syslogd 的包装）。写成 syslogd 时
     # _enable_service 因找不到该文件而静默跳过，check.sh 随后以

@@ -4,6 +4,7 @@
 # 语法：
 #   [pm] <package>                —— emerge 安装（ROOT=${ROOTFS} emerge）
 #   [dl@<url>] <binary_name>      —— 下载 URL 到 /usr/local/bin/<binary_name>
+#   [fw@<url>] <relative_path>    —— 下载固件到 /lib/firmware/<relative_path>
 #
 # 三段式：base / sing-box / landscape
 # ============================================================
@@ -25,10 +26,15 @@
 [pm] sys-fs/growpart
 [pm] sys-libs/timezone-data
 [pm] sys-apps/openrc
+# netifrc：/etc/init.d/net.lo 与 net.<iface> 的服务框架
+[pm] net-misc/netifrc
+[pm] net-misc/rsync
 [pm] sys-process/procps
 [pm] app-misc/fastfetch
 [pm] net-dns/dnsmasq
 [pm] net-firewall/nftables
+# Gentoo 没有 linux-firmware-rtl_nic 拆分包；只下载 R3S LAN 需要的 rtl8168h-2.fw
+[fw@https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/rtl_nic/rtl8168h-2.fw] rtl_nic/rtl8168h-2.fw
 [pm] app-containers/podman
 [pm] app-containers/podman-compose
 [dl@https://pkgs.tailscale.com/stable/tailscale_latest_arm64.tgz] tailscale
