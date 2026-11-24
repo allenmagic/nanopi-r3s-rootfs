@@ -33,10 +33,10 @@ on:
         default: default
         options: [default, tuna]
       hostname:
-        description: "设备主机名（也用于 sing-box Tailscale hostname）"
+        description: "设备主机名（留空 = nanopi-r3s-<distro>；也用于 sing-box Tailscale hostname）"
         type: string
-        required: true
-        default: nanopi-r3s-beijing
+        required: false
+        default: ""
 
 permissions:
   contents: write
