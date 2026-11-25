@@ -205,7 +205,7 @@ check_rootfs() {
     else
         echo "  ✗ syslogd 未输出到 /run/messages"; _FAIL=$((_FAIL + 1))
     fi
-    if grep -q '/var/log/crond.log' "${TARGET_ROOTFS}/etc/init.d/crond" 2>/dev/null; then
+    if grep -vE '^[[:space:]]*#' "${TARGET_ROOTFS}/etc/init.d/crond" 2>/dev/null | grep -q '/var/log/crond.log'; then
         echo "  ✗ crond 仍写 /var/log/crond.log"; _FAIL=$((_FAIL + 1))
     else
         echo "  ✓ crond 日志走 syslog"; _OK=$((_OK + 1))
