@@ -413,7 +413,7 @@ description="Busybox cron daemon"
 
 start() {
     ebegin "Starting crond"
-    # 日志走 syslog（tmpfs），不再写 /var/log/crond.log
+    # 日志走 syslog（tmpfs），不写 SD 卡
     start-stop-daemon --start --quiet \
         --make-pidfile --pidfile /run/crond.pid \
         --exec /bin/busybox -- crond -l 0
