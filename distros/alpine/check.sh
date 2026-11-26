@@ -88,10 +88,12 @@ check_rootfs() {
     fi
 
     echo "[check] 日志与写盘:"
-    if grep -q 'SYSLOGD_OPTS=.*-O /run/messages' /etc/conf.d/syslog 2>/dev/null; then
-        echo "  ✓ syslogd 输出到 /run/messages (tmpfs)"; _OK=$((_OK + 1))
+    # busybox syslogd 的 -s 只接受纯数字（单位 KB），"-s 1M" 会让它启动失败
+    if grep -q 'SYSLOGD_OPTS=.*-O /run/messages' /etc/conf.d/syslog 2>/dev/null && \
+       grep -qE 'SYSLOGD_OPTS=.*-s [0-9]+([[:space:]]|")' /etc/conf.d/syslog 2>/dev/null; then
+        echo "  ✓ syslogd 输出到 /run/messages (tmpfs, -s 为 KB 数字)"; _OK=$((_OK + 1))
     else
-        echo "  ✗ syslogd 未输出到 /run/messages"; _FAIL=$((_FAIL + 1))
+        echo "  ✗ syslogd 未正确输出到 /run/messages（-s 必须是 KB 数字）"; _FAIL=$((_FAIL + 1))
     fi
     if [ -f /etc/sing-box/config.json ]; then
         if grep -q '"level": "error"' /etc/sing-box/config.json && \
