@@ -5,20 +5,33 @@
 #   [pm] <package>                —— 包管理器安装（apt-get）
 #   [dl@<url>] <binary_name>      —— 下载 URL 到 /usr/local/bin/<binary_name>
 #                                   自动解压 .tar.gz，查找二进制文件
+#   [fw@<url>] <relative_path>    —— 下载固件到 /lib/firmware/<relative_path>
 #
 # 三段式：base / sing-box / landscape
 # ============================================================
 
 # ========== base ==========
 [pm] bash
+[pm] initscripts
 [pm] openssh-server
 [pm] chrony
 [pm] curl
 [pm] nano
 [pm] ncurses-bin
 [pm] ncurses-base
+[pm] ifupdown
+[pm] isc-dhcp-client
+[pm] iproute2
+[pm] kmod
+[pm] util-linux
+[pm] e2fsprogs
+[pm] cloud-guest-utils
+[pm] procps
 [pm] dnsmasq
 [pm] nftables
+# sysvinit 下用 rsyslog 接管日志（配置到 /run/messages，tmpfs）
+[pm] rsyslog
+[fw@https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/rtl_nic/rtl8168h-2.fw] rtl_nic/rtl8168h-2.fw
 [pm] fastfetch
 [pm] podman
 [pm] podman-compose

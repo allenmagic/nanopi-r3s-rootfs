@@ -1,0 +1,14 @@
+[Unit]
+Description=YunShu tun0 route maintainer
+After=yunshu.service network.target
+Wants=yunshu.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/vpn-routes daemon
+ExecStop=/usr/local/bin/vpn-routes del
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

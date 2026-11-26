@@ -1,0 +1,12 @@
+[Unit]
+Description=Router local startup (sysctl + local.d)
+After=local-fs.target network.target
+Wants=network.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c 'for f in /etc/sysctl.d/*.conf; do [ -f "$f" ] && sysctl -p "$f" || true; done; for f in /etc/local.d/*.start; do [ -x "$f" ] && "$f" || true; done'
+
+[Install]
+WantedBy=multi-user.target
