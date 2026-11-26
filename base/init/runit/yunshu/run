@@ -1,0 +1,43 @@
+#!/bin/sh
+# runit 没有依赖排序，所以自己等 WAN 起来，再 exec vpn-routes 驻留（runit 靠它判定存活）
+exec 2>&1
+
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+
+ENVFILE=/etc/yunshu/yunshu.env
+DNS_CONF=/etc/dnsmasq.d/15-vpn-tunnel-dns.conf
+COMPOSE="/usr/bin/podman-compose --in-pod=false --env-file ${ENVFILE} -f /etc/yunshu/compose.yaml"
+
+_i=0
+while [ "${_i}" -lt 60 ]; do
+    ip -4 route show default 2>/dev/null | grep -q . && break
+    sleep 5; _i=$((_i + 1))
+done
+
+${COMPOSE} up -d
+
+set -a
+[ -f "${ENVFILE}" ] && . "${ENVFILE}"
+set +a
+
+# sing-box 模式：DNS 由 sing-box 统一接管，yunshu 不再写 dnsmasq drop-in
+if [ -f /etc/sing-box/config.json ]; then
+    if [ -f "${DNS_CONF}" ]; then
+        rm -f "${DNS_CONF}"
+        sv restart dnsmasq 2>/dev/null || true
+    fi
+elif [ -n "${VPN_DNS_UPSTREAM:-}" ]; then
+    printf 'strict-order\nserver=%s\n' "${VPN_DNS_UPSTREAM}" > "${DNS_CONF}"
+    # reload 不重读 conf-dir，必须 restart
+    sv restart dnsmasq 2>/dev/null || true
+fi
+
+# 等 yunshu 建出 tun0；超时也继续（sing-box 的 singtun0 不依赖它）
+_i=0
+while [ "${_i}" -lt 60 ]; do
+    [ -e "/sys/class/net/${VPN_IFACE:-tun0}" ] && break
+    sleep 1; _i=$((_i + 1))
+done
+
+exec /usr/local/bin/vpn-routes daemon

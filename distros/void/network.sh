@@ -20,6 +20,20 @@ nodhcp
 nogateway
 EOF
 
+    # dhcpcd 没有 ifupdown 的 pre-up；把 lan-mac 塞进服务启动脚本，
+    # 保证 LAN 口在 dhcpcd 配置地址前就拿到稳定 MAC
+    # （RTL8111H 无 EEPROM，否则每次开机 MAC 随机）。保留包自带启动参数。
+    if [ -d /etc/sv/dhcpcd ]; then
+        cat > /etc/sv/dhcpcd/run << EOF
+#!/bin/sh
+exec 2>&1
+[ -r conf ] && . ./conf
+[ -x /usr/local/bin/lan-mac ] && LAN_IFACE=${LAN_IFACE} /usr/local/bin/lan-mac
+exec dhcpcd -B \${OPTS:--M -q} 1>&2
+EOF
+        chmod +x /etc/sv/dhcpcd/run
+    fi
+
     echo "[network] === 网络配置完成 ==="
 }
 
