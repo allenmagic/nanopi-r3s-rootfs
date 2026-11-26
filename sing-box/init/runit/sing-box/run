@@ -1,3 +1,10 @@
 #!/bin/sh
 exec 2>&1
+# runit 没有依赖排序；yunshu 的 bridge outbound 直接绑定 tun0，
+# 等它出现再启动（最多 60s，超时也继续，让 sing-box 自己报错）
+_i=0
+while [ "${_i}" -lt 60 ]; do
+    [ -e /sys/class/net/tun0 ] && break
+    sleep 1; _i=$((_i + 1))
+done
 exec /usr/local/bin/sing-box run -D /etc/sing-box

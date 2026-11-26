@@ -1,0 +1,4 @@
+#!/bin/sh
+# 退出时清掉 WAN 管理网段放行，避免残留规则
+nft flush set inet filter wan_mgmt_nets 2>/dev/null || true
+rm -f /run/wan-mgmt.state

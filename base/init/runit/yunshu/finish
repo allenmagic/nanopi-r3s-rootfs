@@ -1,0 +1,21 @@
+#!/bin/sh
+# run 退出后由 runit 调用（$1=退出码 $2=信号）：拆容器、撤 DNS drop-in、清路由
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+
+ENVFILE=/etc/yunshu/yunshu.env
+DNS_CONF=/etc/dnsmasq.d/15-vpn-tunnel-dns.conf
+COMPOSE="/usr/bin/podman-compose --in-pod=false --env-file ${ENVFILE} -f /etc/yunshu/compose.yaml"
+
+set -a
+[ -f "${ENVFILE}" ] && . "${ENVFILE}"
+set +a
+
+/usr/local/bin/vpn-routes del 2>/dev/null || true
+
+if [ -f "${DNS_CONF}" ]; then
+    rm -f "${DNS_CONF}"
+    sv restart dnsmasq 2>/dev/null || true
+fi
+
+${COMPOSE} down 2>/dev/null || true

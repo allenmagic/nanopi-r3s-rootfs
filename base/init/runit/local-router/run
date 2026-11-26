@@ -1,0 +1,21 @@
+#!/bin/sh
+# local-router —— 一次性启动任务（sysctl + local.d），对齐 Debian 的同名服务
+#
+#   - sysctl.d：Void 的 08-sysctl core service 已在 stage 1 执行过，这里兜底（幂等）
+#   - local.d：首启扩容（rootfs-resize）、LED、hw-tweak 等
+#
+exec 2>&1
+
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+
+for _f_ in /etc/sysctl.d/*.conf; do
+    [ -f "${_f_}" ] && sysctl -p "${_f_}" >/dev/null 2>&1 || true
+done
+
+for _f_ in /etc/local.d/*.start; do
+    [ -x "${_f_}" ] && "${_f_}" || true
+done
+
+# runit 需要一个常驻进程判定服务存活；一次性任务干完挂起即可
+exec chpst -b local-router pause

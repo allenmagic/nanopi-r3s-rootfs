@@ -8,10 +8,14 @@ enable_router_services() {
     echo "[service] === 启用路由器服务 (INFRA=${INFRA:-base}) ==="
 
     # --- base 服务（按依赖顺序）---
+    # 0. 系统日志（dhcpcd/nftables 的 log 服务走 vlogger，需要 syslog）
+    _enable_service rsyslogd
+
     # 1. 防火墙（最先加载）
     _enable_nftables
 
     # 2. 核心网络服务
+    _enable_service dhcpcd
     _enable_service dnsmasq
 
     # 3. 基础应用服务
@@ -22,8 +26,11 @@ enable_router_services() {
     _enable_service tailscaled
     _enable_cloudflared
 
-    # 5. 监控服务
+    # 5. 路由辅助服务（yunshu 的 run 内部托管 vpn-routes）
     _enable_service network-watchdog
+    _enable_service wan-mgmt
+    _enable_service yunshu
+    _enable_service local-router
 
     # --- 根据 INFRA 启用组件服务 ---
     case ",${INFRA:-base}," in

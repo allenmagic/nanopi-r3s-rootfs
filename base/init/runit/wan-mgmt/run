@@ -1,0 +1,4 @@
+#!/bin/sh
+# nftables 是另一个服务，起来前 set 还不存在；脚本每 30s 重试，run 这层不用等
+exec 2>&1
+exec /usr/local/bin/wan-mgmt daemon

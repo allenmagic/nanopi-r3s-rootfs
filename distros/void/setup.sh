@@ -57,6 +57,17 @@ if [ -f "${_PKG_LIST_}" ]; then
                 echo "[setup]   [dl@${_bin_}]"
                 _dl_url "${_url_}" "${_bin_}"
                 ;;
+            '[fw@'*)
+                _line_="${_line_#\[fw@}"
+                _url_="${_line_%%\] *}"
+                _rel_="${_line_#*\] }"
+                _fwdir_="$(dirname "${_rel_}")"
+                _fwfile_="$(basename "${_rel_}")"
+                [ "${_fwdir_}" = "." ] && _fwdir_=""
+                mkdir -p "/lib/firmware/${_fwdir_}"
+                echo "[setup]   [fw@${_rel_}]"
+                DESTDIR="/lib/firmware/${_fwdir_}" _dl_url "${_url_}" "${_fwfile_}"
+                ;;
         esac
     done < "${_PKG_LIST_}"
 else
@@ -90,6 +101,13 @@ _deploy_cfg_ base
 # sing-box 模式叠加部署 sing-box/
 case "${INFRA:-base}" in sing-box) _deploy_cfg_ sing-box ;; esac
 
+# sysctl.d 的 `-key = value` 是 systemd 语法；剥掉前缀后 Void 的 08-sysctl
+# core service 与 local-router 的 sysctl -p 才能正确执行
+sed -i 's/^[[:space:]]*-//' /etc/sysctl.d/*.conf 2>/dev/null || true
+
+# local.d 一次性脚本需要可执行位（首启扩容 / LED / hw-tweak）
+chmod +x /etc/local.d/*.start 2>/dev/null || true
+
 # 清理文档文件
 find /etc \( -name '*.md' -o -name '*.example' \) -exec rm -f {} + 2>/dev/null || true
 
@@ -107,6 +125,24 @@ if [ -f /scripts/wan-mgmt.sh ]; then
     install -m 0755 /scripts/wan-mgmt.sh /usr/local/bin/wan-mgmt
     echo "[setup]   已安装: wan-mgmt"
 fi
+if [ -f /scripts/lan-mac.sh ]; then
+    install -m 0755 /scripts/lan-mac.sh /usr/local/bin/lan-mac
+    echo "[setup]   已安装: lan-mac"
+fi
+if [ -f /scripts/rootfs-resize.sh ]; then
+    install -m 0755 /scripts/rootfs-resize.sh /usr/local/bin/rootfs-resize
+    echo "[setup]   已安装: rootfs-resize"
+fi
+if [ -f /scripts/singbox-yunshu.sh ]; then
+    install -m 0755 /scripts/singbox-yunshu.sh /usr/local/bin/yunshu-domain
+    echo "[setup]   已安装: yunshu-domain"
+fi
+# Void 的 kmod 包不提供 modules-load（那是 systemd 的工具），但 runit 的
+# 02-kmods core service 会调用它；缺了它 /etc/modules-load.d 永远不生效
+if [ -f /scripts/modules-load.sh ]; then
+    install -m 0755 /scripts/modules-load.sh /usr/bin/modules-load
+    echo "[setup]   已安装: modules-load"
+fi
 
 # 统一路径：包管理器装的 sing-box 在 /usr/bin/，ln -s 到 /usr/local/bin/
 if [ ! -e /usr/local/bin/sing-box ] && [ -x /usr/bin/sing-box ]; then
@@ -118,6 +154,31 @@ fi
 # ============================================================
 . /network.sh
 configure_network
+
+# sing-box 模式：由域名清单生成规则集（提交的 JSON 是兜底，这里保证与 txt 同步）
+case ",${INFRA:-base}," in
+    *",sing-box,"*)
+        if [ -x /usr/local/bin/yunshu-domain ] && \
+           [ -f /etc/sing-box/rules/yunshu-domains.txt ]; then
+            echo "[setup] 生成 yunshu-domains.json ..."
+            /usr/local/bin/yunshu-domain render
+        fi
+        ;;
+esac
+
+# Void 的 nftables run unit（以及 core-service 91-nftables）只读
+# /etc/nftables.conf；不写这个文件时它们直接退出，规则根本没加载
+if [ -f /etc/nftables.nft ]; then
+    printf 'include "/etc/nftables.nft"\n' > /etc/nftables.conf
+fi
+
+# Void 默认 rsyslog 配置写 /var/log；用 drop-in 改到 tmpfs /run/messages，
+# `& stop` 截断后续默认规则，避免 SD 卡写入
+mkdir -p /etc/rsyslog.d
+cat > /etc/rsyslog.d/99-router.conf <<'EOF'
+*.* /run/messages
+& stop
+EOF
 
 # ============================================================
 #  3. 系统设置

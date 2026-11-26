@@ -5,6 +5,7 @@
 #   [pm] <package>                —— 包管理器安装（xbps-install）
 #   [dl@<url>] <binary_name>      —— 下载 URL 到 /usr/local/bin/<binary_name>
 #                                   自动解压 .tar.gz，查找二进制文件
+#   [fw@<url>] <relative_path>    —— 下载固件到 /lib/firmware/<relative_path>
 #
 # 三段式：base / sing-box / landscape
 # ============================================================
@@ -12,6 +13,10 @@
 # ========== base ==========
 [pm] bash
 [pm] openssh
+# WAN 口 DHCP；LAN 静态地址由 network.sh 追加到 /etc/dhcpcd.conf
+[pm] dhcpcd
+# 日志写 tmpfs /run/messages，避免 SD 卡写入（dhcpcd/nftables 的 vlogger 依赖 syslog）
+[pm] rsyslog
 [pm] chrony
 [pm] curl
 [pm] nano
@@ -22,6 +27,15 @@
 [pm] runit-nftables
 [pm] tailscale
 [pm] iproute2
+# Void 的 02-kmods core service 调 modules-load；kmod 提供 modprobe，
+# modules-load 本身由 scripts/modules-load.sh 补齐（Void 的 kmod 不含它）
+[pm] kmod
+# 首启扩容：growpart 改分区 + resize2fs 扩 fs
+[pm] e2fsprogs
+[pm] cloud-guest-utils
+[pm] rsync
+# Void 无 linux-firmware-rtl_nic 拆分包；只下载 R3S LAN 需要的 rtl8168h-2.fw
+[fw@https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/rtl_nic/rtl8168h-2.fw] rtl_nic/rtl8168h-2.fw
 [pm] cloudflared
 [pm] fastfetch
 [pm] podman
