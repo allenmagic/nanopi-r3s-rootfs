@@ -1,0 +1,14 @@
+[Unit]
+Description=YunShu container (podman-compose)
+After=network-online.target nftables.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/podman-compose --in-pod=false --env-file /etc/yunshu/yunshu.env -f /etc/yunshu/compose.yaml up -d
+ExecStartPost=/bin/sh -c 'for i in $(seq 1 60); do ip link show tun0 >/dev/null 2>&1 && exit 0; sleep 1; done; exit 0'
+ExecStop=/usr/bin/podman-compose --in-pod=false --env-file /etc/yunshu/yunshu.env -f /etc/yunshu/compose.yaml down
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,14 @@
+[Unit]
+Description=WAN management allowlist
+After=network-online.target nftables.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/wan-mgmt daemon
+ExecStop=/bin/sh -c 'nft flush set inet filter wan_mgmt_nets 2>/dev/null || true; rm -f /run/wan-mgmt.state'
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

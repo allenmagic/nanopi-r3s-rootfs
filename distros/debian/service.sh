@@ -11,19 +11,26 @@ enable_router_services() {
     # 1. 防火墙（最先加载）
     _enable_nftables
 
-    # 2. 核心网络服务
+    # 2. 网络接口（ifupdown）
+    _enable_service networking
+
+    # 3. 核心网络服务
     _enable_service dnsmasq
 
-    # 3. 基础应用服务
+    # 4. 基础应用服务
     _enable_service ssh
     _enable_service chrony
 
-    # 4. VPN 和隧道服务
+    # 5. VPN 和隧道服务
     _enable_service tailscaled
     _enable_cloudflared
 
-    # 5. 监控服务
+    # 6. 路由辅助服务
     _enable_service network-watchdog
+    _enable_service wan-mgmt
+    _enable_service yunshu
+    _enable_service vpn-routes
+    _enable_service local-router
 
     # --- 根据 INFRA 启用组件服务 ---
     case ",${INFRA:-base}," in

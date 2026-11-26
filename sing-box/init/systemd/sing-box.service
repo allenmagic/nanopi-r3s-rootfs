@@ -1,6 +1,7 @@
 [Unit]
 Description=sing-box service
-After=network.target
+After=network.target yunshu.service
+Wants=yunshu.service
 
 [Service]
 Type=simple

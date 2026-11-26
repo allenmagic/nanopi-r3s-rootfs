@@ -1,0 +1,40 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          wan-mgmt
+# Required-Start:    $network $local_fs nftables
+# Required-Stop:     $network
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: WAN management allowlist
+### END INIT INFO
+
+DAEMON=/usr/local/bin/wan-mgmt
+PIDFILE=/run/wan-mgmt.pid
+
+case "$1" in
+    start)
+        echo "Starting wan-mgmt..."
+        start-stop-daemon --start --quiet --background --make-pidfile \
+            --pidfile "$PIDFILE" --exec "$DAEMON" -- daemon
+        ;;
+    stop)
+        echo "Stopping wan-mgmt..."
+        start-stop-daemon --stop --quiet --pidfile "$PIDFILE" || true
+        rm -f "$PIDFILE"
+        nft flush set inet filter wan_mgmt_nets 2>/dev/null || true
+        rm -f /run/wan-mgmt.state
+        ;;
+    restart) "$0" stop; "$0" start ;;
+    status)
+        if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+            echo "wan-mgmt is running"
+        else
+            echo "wan-mgmt is not running"
+            exit 1
+        fi
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status}"
+        exit 1
+        ;;
+esac

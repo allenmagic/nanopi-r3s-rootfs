@@ -1,0 +1,27 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          local-router
+# Required-Start:    $local_fs $network
+# Required-Stop:     $local_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Router local startup (sysctl + local.d)
+### END INIT INFO
+
+case "$1" in
+    start)
+        for f in /etc/sysctl.d/*.conf; do
+            [ -f "$f" ] && sysctl -p "$f" || true
+        done
+        for f in /etc/local.d/*.start; do
+            [ -x "$f" ] && "$f" || true
+        done
+        ;;
+    stop) : ;;
+    restart) "$0" start ;;
+    status) echo "local-router is a one-shot service" ;;
+    *)
+        echo "Usage: $0 {start|stop|restart|status}"
+        exit 1
+        ;;
+esac

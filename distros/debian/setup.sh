@@ -61,6 +61,17 @@ if [ -f "${_PKG_LIST_}" ]; then
                 echo "[setup]   [dl@${_bin_}]"
                 _dl_url "${_url_}" "${_bin_}"
                 ;;
+            '[fw@'*)
+                _line_="${_line_#\[fw@}"
+                _url_="${_line_%%\] *}"
+                _rel_="${_line_#*\] }"
+                _fwdir_="$(dirname "${_rel_}")"
+                _fwfile_="$(basename "${_rel_}")"
+                [ "${_fwdir_}" = "." ] && _fwdir_=""
+                mkdir -p "/lib/firmware/${_fwdir_}"
+                echo "[setup]   [fw@${_rel_}]"
+                DESTDIR="/lib/firmware/${_fwdir_}" _dl_url "${_url_}" "${_fwfile_}"
+                ;;
         esac
     done < "${_PKG_LIST_}"
 else
@@ -92,6 +103,10 @@ _deploy_cfg_ base
 # sing-box 模式叠加部署 sing-box/
 case "${INFRA:-base}" in sing-box) _deploy_cfg_ sing-box ;; esac
 
+# sysctl.d 的 `-key = value` 是 systemd 语法；剥掉前缀后 local-router/sysctl -p 也能用
+sed -i 's/^[[:space:]]*-//' /etc/sysctl.d/*.conf 2>/dev/null || true
+chmod +x /etc/local.d/*.start 2>/dev/null || true
+
 find /etc \( -name '*.md' -o -name '*.example' \) -exec rm -f {} + 2>/dev/null || true
 
 # 安装运行时脚本到 /usr/local/bin/
@@ -108,6 +123,18 @@ if [ -f /scripts/wan-mgmt.sh ]; then
     install -m 0755 /scripts/wan-mgmt.sh /usr/local/bin/wan-mgmt
     echo "[setup]   已安装: wan-mgmt"
 fi
+if [ -f /scripts/lan-mac.sh ]; then
+    install -m 0755 /scripts/lan-mac.sh /usr/local/bin/lan-mac
+    echo "[setup]   已安装: lan-mac"
+fi
+if [ -f /scripts/rootfs-resize.sh ]; then
+    install -m 0755 /scripts/rootfs-resize.sh /usr/local/bin/rootfs-resize
+    echo "[setup]   已安装: rootfs-resize"
+fi
+if [ -f /scripts/singbox-yunshu.sh ]; then
+    install -m 0755 /scripts/singbox-yunshu.sh /usr/local/bin/yunshu-domain
+    echo "[setup]   已安装: yunshu-domain"
+fi
 
 if [ ! -e /usr/local/bin/sing-box ] && [ -x /usr/bin/sing-box ]; then
     ln -s /usr/bin/sing-box /usr/local/bin/sing-box
@@ -118,6 +145,31 @@ fi
 # ============================================================
 . /network.sh
 configure_network
+
+# sing-box 模式：由域名清单生成规则集（提交的 JSON 是兜底）
+case ",${INFRA:-base}," in
+    *",sing-box,"*)
+        if [ -x /usr/local/bin/yunshu-domain ] && \
+           [ -f /etc/sing-box/rules/yunshu-domains.txt ]; then
+            echo "[setup] 生成 yunshu-domains.json ..."
+            /usr/local/bin/yunshu-domain render
+        fi
+        ;;
+esac
+
+# Debian nftables.service 默认加载 /etc/nftables.conf；让它 include 共享规则
+if [ -f /etc/nftables.nft ]; then
+    printf 'include "/etc/nftables.nft"\n' > /etc/nftables.conf
+fi
+
+# systemd-journald 使用 volatile（/run/log/journal，tmpfs），避免 SD 写入
+mkdir -p /etc/systemd/journald.conf.d
+cat > /etc/systemd/journald.conf.d/99-router.conf <<'EOF'
+[Journal]
+Storage=volatile
+RuntimeMaxUse=64M
+RuntimeKeepFree=16M
+EOF
 
 # ============================================================
 #  3. 系统设置
