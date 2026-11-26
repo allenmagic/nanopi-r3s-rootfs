@@ -2,10 +2,12 @@
 #
 # -t                原始配置保留的参数（BusyBox syslogd 的简略格式）
 # -O /run/messages  日志文件放在 /run（tmpfs），重启即清空，不落 SD
-# -s 1M             单个日志文件上限 1 MiB；syslogd 会轮转/截断，
-#                   总量固定在 ~2 MiB 以内，不会无限占内存
+# -s 1024           单个日志文件上限 1024 KB = 1 MiB。
+#                   busybox 的 -s 只接受纯数字（单位 KB），写 "1M" 会报
+#                   invalid number 并导致 syslogd 启动失败。
+#                   syslogd 会轮转/截断，总量固定在 ~2 MiB 以内，不会无限占内存
 #
 # 需要查看日志时：
 #   logread
 #   cat /run/messages
-SYSLOGD_OPTS="-t -O /run/messages -s 1M"
+SYSLOGD_OPTS="-t -O /run/messages -s 1024"

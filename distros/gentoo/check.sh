@@ -48,6 +48,11 @@ check_rootfs() {
     else
         echo "  ✗ inittab 无激活串口 getty 行!"; _FAIL=$((_FAIL + 1))
     fi
+    if grep -qE ":respawn:/sbin/agetty .*-L([[:space:]]|$)" "${TARGET_ROOTFS}/etc/inittab" 2>/dev/null; then
+        echo "  ✓ 串口 getty 忽略 DCD (-L)"; _OK=$((_OK + 1))
+    else
+        echo "  ✗ 串口 getty 缺 -L，载波抖动会导致登录 respawn 循环"; _FAIL=$((_FAIL + 1))
+    fi
     # l6 只负责停服务，真正发起重启的是 l6r；漏了它会卡在「根只读、内核不重启」
     if grep -qE "^l6r:6:.*reboot" "${TARGET_ROOTFS}/etc/inittab" 2>/dev/null; then
         echo "  ✓ inittab 有 l6r 重启行"; _OK=$((_OK + 1))
@@ -199,16 +204,23 @@ check_rootfs() {
     fi
 
     # 7.4 日志与关键配置
+    # busybox syslogd 的 -s 只接受纯数字（单位 KB），"-s 1M" 会让它启动失败
     if grep -q 'SYSLOGD_OPTS=.*-O /run/messages' "${TARGET_ROOTFS}/etc/conf.d/syslog" 2>/dev/null && \
+       grep -qE 'SYSLOGD_OPTS=.*-s [0-9]+([[:space:]]|")' "${TARGET_ROOTFS}/etc/conf.d/syslog" 2>/dev/null && \
        grep -q '/etc/conf.d/syslog' "${TARGET_ROOTFS}/etc/init.d/syslog" 2>/dev/null; then
-        echo "  ✓ syslogd 输出到 /run/messages (tmpfs)"; _OK=$((_OK + 1))
+        echo "  ✓ syslogd 输出到 /run/messages (tmpfs, -s 为 KB 数字)"; _OK=$((_OK + 1))
     else
-        echo "  ✗ syslogd 未输出到 /run/messages"; _FAIL=$((_FAIL + 1))
+        echo "  ✗ syslogd 未正确输出到 /run/messages（-s 必须是 KB 数字）"; _FAIL=$((_FAIL + 1))
     fi
     if grep -vE '^[[:space:]]*#' "${TARGET_ROOTFS}/etc/init.d/crond" 2>/dev/null | grep -q '/var/log/crond.log'; then
         echo "  ✗ crond 仍写 /var/log/crond.log"; _FAIL=$((_FAIL + 1))
     else
         echo "  ✓ crond 日志走 syslog"; _OK=$((_OK + 1))
+    fi
+    if [ -d "${TARGET_ROOTFS}/var/spool/cron/crontabs" ]; then
+        echo "  ✓ crond spool 目录存在"; _OK=$((_OK + 1))
+    else
+        echo "  ✗ crond spool 目录缺失（crond 会启动失败）"; _FAIL=$((_FAIL + 1))
     fi
     if grep -q '^port=0' "${TARGET_ROOTFS}/etc/dnsmasq.d/99-disable-dns-server.conf" 2>/dev/null; then
         echo "  ✓ dnsmasq port=0（仅 DHCP）"; _OK=$((_OK + 1))

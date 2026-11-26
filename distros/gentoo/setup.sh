@@ -393,14 +393,18 @@ start() {
     # 与 Alpine 一致：日志写 tmpfs /run/messages，避免 SD 卡写入
     [ -f /etc/conf.d/syslog ] && . /etc/conf.d/syslog
     ebegin "Starting syslogd"
-    start-stop-daemon --start --quiet \
-        --exec /bin/busybox -- syslogd ${SYSLOGD_OPTS:--O /run/messages -s 1M}
+    # -n：前台运行交给 start-stop-daemon 托管；
+    # 配 --make-pidfile/--pidfile，停止时按 pidfile，不会误杀其它 busybox 服务；
+    # busybox 的 -s 只接受 KB 数字（写 1M 会 invalid number）
+    start-stop-daemon --start --quiet --background \
+        --make-pidfile --pidfile /run/syslogd.pid \
+        --exec /bin/busybox -- syslogd -n ${SYSLOGD_OPTS:--O /run/messages -s 1024}
     eend $?
 }
 
 stop() {
     ebegin "Stopping syslogd"
-    start-stop-daemon --stop --quiet --exec /bin/busybox -- syslogd
+    start-stop-daemon --stop --quiet --pidfile /run/syslogd.pid
     eend $?
 }
 INITEOF
@@ -413,10 +417,10 @@ description="Busybox cron daemon"
 
 start() {
     ebegin "Starting crond"
-    # 日志走 syslog（tmpfs），不写 SD 卡
-    start-stop-daemon --start --quiet \
+    # -f：前台运行交给 start-stop-daemon 托管（否则进程自己 fork，pidfile 会失效）
+    start-stop-daemon --start --quiet --background \
         --make-pidfile --pidfile /run/crond.pid \
-        --exec /bin/busybox -- crond -l 0
+        --exec /bin/busybox -- crond -f -l 0
     eend $?
 }
 
@@ -427,6 +431,10 @@ stop() {
 }
 INITEOF
 chmod 755 "${TARGET_ROOTFS}/etc/init.d/crond"
+
+# busybox crond 不会自己创建 spool 目录，缺失时启动即报错退出
+mkdir -p "${TARGET_ROOTFS}/var/spool/cron/crontabs"
+chmod 0700 "${TARGET_ROOTFS}/var/spool/cron/crontabs"
 
 # 配置时区
 if [ -f "${TARGET_ROOTFS}/usr/share/zoneinfo/${TIMEZONE}" ]; then
@@ -604,7 +612,7 @@ l0s:0:wait:/sbin/halt.sh
 l6u:6:wait:/sbin/telinit u
 l6:6:wait:/sbin/openrc reboot
 l6r:6:wait:/sbin/reboot -d
-S2:12345:respawn:/sbin/agetty ${SERIAL_BAUD} ${SERIAL_DEV} vt100
+S2:12345:respawn:/sbin/agetty -L ${SERIAL_BAUD} ${SERIAL_DEV} vt100
 EOF
 
 # cgroup v2：默认 hybrid，podman 认不到 v2 控制器
