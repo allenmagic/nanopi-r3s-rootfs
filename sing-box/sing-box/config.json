@@ -160,5 +160,18 @@
       "server": "local"
     },
     "final": "direct-out"
-  }
+  },
+  "services": [
+    {
+      "type": "api",
+      "listen": "__LAN_IP__",
+      "listen_port": 9090,
+      "secret": "__SINGBOX_API_SECRET__",
+      "access_control_allow_origin": ["http://__LAN_IP__:9090"],
+      "dashboard": {
+        "enabled": true,
+        "path": "/etc/sing-box/dashboard"
+      }
+    }
+  ]
 }

@@ -243,6 +243,14 @@ check_rootfs() {
             /usr/local/bin/sing-box check -c /etc/sing-box/config.json 2>&1 | tail -20
             _FAIL=$((_FAIL + 1))
         fi
+        if grep -q '"type": "api"' /etc/sing-box/config.json 2>/dev/null && \
+           ! grep -q '__SINGBOX_API_SECRET__' /etc/sing-box/config.json 2>/dev/null && \
+           [ -f /etc/sing-box/api.secret ] && \
+           [ "$(stat -c '%a' /etc/sing-box/api.secret 2>/dev/null)" = "600" ]; then
+            echo "  ✓ Dashboard API 已启用（Secret 0600）"; _OK=$((_OK + 1))
+        else
+            echo "  ✗ Dashboard API/Secret 配置不完整"; _FAIL=$((_FAIL + 1))
+        fi
     ;; esac
 
     # ---------- 结果 ----------

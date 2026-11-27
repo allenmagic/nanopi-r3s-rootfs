@@ -68,4 +68,12 @@ _replace_placeholders() {
             -e "s|__ROUTER_HOSTNAME__|${HOSTNAME_VAL}|g" \
             "${_f_}"
     done
+    # sing-box Dashboard API：每个构建生成随机 Secret，写入 api.secret 供登录使用
+    if [ -f "${TARGET_ROOTFS}/etc/sing-box/config.json" ] && \
+       grep -q '__SINGBOX_API_SECRET__' "${TARGET_ROOTFS}/etc/sing-box/config.json"; then
+        _sb_secret_="$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+        sed -i "s|__SINGBOX_API_SECRET__|${_sb_secret_}|g" "${TARGET_ROOTFS}/etc/sing-box/config.json"
+        printf '%s\n' "${_sb_secret_}" > "${TARGET_ROOTFS}/etc/sing-box/api.secret"
+        chmod 600 "${TARGET_ROOTFS}/etc/sing-box/api.secret"
+    fi
 }
