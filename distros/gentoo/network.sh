@@ -15,6 +15,9 @@ configure_network() {
     # preup：LAN 口无 EEPROM，MAC 每次开机随机，配 IP 前先钉住
     cat > "${TARGET_ROOTFS}/etc/conf.d/net" << EOF
 config_${WAN_IFACE}="dhcp"
+# netifrc 固定给 udhcpc 传 --now（= -n，拿不到 lease 就退出）；追加 -b 后
+# busybox 会优先走 -b：无 lease 转后台继续重试，net.eth0 不再失败卡住整个 LAN
+udhcpc_${WAN_IFACE}="-b -t 5 -T 2"
 config_${LAN_IFACE}="${LAN_IP}/${LAN_CIDR}"
 modules="!plug"
 
@@ -28,6 +31,12 @@ EOF
     # 激活 netifrc 接口（符号链接 /etc/init.d/net.lo -> net.<iface>）
     ln -sf net.lo "${TARGET_ROOTFS}/etc/init.d/net.${LAN_IFACE}"
     ln -sf net.lo "${TARGET_ROOTFS}/etc/init.d/net.${WAN_IFACE}"
+
+    # dnsmasq 包自带 init 是 need localmount net（含 WAN 接口）：WAN DHCP 失败时
+    # LAN 的 DHCP/DNS 也不会启动。conf.d 里的 rc_need 只会追加、不能覆盖，
+    # 所以直接改 init 脚本：只依赖 LAN 接口，WAN 恢复交给 network-watchdog
+    sed -i "s/need localmount net$/need localmount net.${LAN_IFACE}/" \
+        "${TARGET_ROOTFS}/etc/init.d/dnsmasq"
 
     echo "[network] === 网络配置完成 ==="
 }
@@ -68,4 +77,12 @@ _replace_placeholders() {
             -e "s|__ROUTER_HOSTNAME__|${HOSTNAME_VAL}|g" \
             "${_f_}"
     done
+    # sing-box Dashboard API：每个构建生成随机 Secret，写入 api.secret 供登录使用
+    if [ -f "${TARGET_ROOTFS}/etc/sing-box/config.json" ] && \
+       grep -q '__SINGBOX_API_SECRET__' "${TARGET_ROOTFS}/etc/sing-box/config.json"; then
+        _sb_secret_="$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+        sed -i "s|__SINGBOX_API_SECRET__|${_sb_secret_}|g" "${TARGET_ROOTFS}/etc/sing-box/config.json"
+        printf '%s\n' "${_sb_secret_}" > "${TARGET_ROOTFS}/etc/sing-box/api.secret"
+        chmod 600 "${TARGET_ROOTFS}/etc/sing-box/api.secret"
+    fi
 }

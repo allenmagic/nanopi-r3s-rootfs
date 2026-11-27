@@ -390,7 +390,7 @@ cat > "${TARGET_ROOTFS}/etc/init.d/syslog" <<'INITEOF'
 description="Busybox syslog daemon"
 
 start() {
-    # 与 Alpine 一致：日志写 tmpfs /run/messages，避免 SD 卡写入
+    # Gentoo 把日志落 /var/log/messages（1MiB 轮转），重启后仍可查故障原因
     [ -f /etc/conf.d/syslog ] && . /etc/conf.d/syslog
     ebegin "Starting syslogd"
     # -n：前台运行交给 start-stop-daemon 托管；
@@ -398,7 +398,7 @@ start() {
     # busybox 的 -s 只接受 KB 数字（写 1M 会 invalid number）
     start-stop-daemon --start --quiet --background \
         --make-pidfile --pidfile /run/syslogd.pid \
-        --exec /bin/busybox -- syslogd -n ${SYSLOGD_OPTS:--O /run/messages -s 1024}
+        --exec /bin/busybox -- syslogd -n ${SYSLOGD_OPTS:--O /var/log/messages -s 1024}
     eend $?
 }
 
@@ -468,6 +468,16 @@ _deploy_cfg_() {
 _deploy_cfg_ base
 # sing-box 模式叠加部署 sing-box/
 case "${INFRA:-base}" in sing-box) _deploy_cfg_ sing-box ;; esac
+
+# 持久化日志（SD 写入量很小，1MiB 轮转）：
+#   - syslog 从 tmpfs /run/messages 改到 /var/log/messages，重启后仍能查故障
+#   - bootmisc 保留上一次启动的 dmesg 到 /var/log/dmesg.old
+sed -i 's|/run/messages|/var/log/messages|g' "${TARGET_ROOTFS}/etc/conf.d/syslog" 2>/dev/null || true
+sed -i 's/^#previous_dmesg=no/previous_dmesg=yes/' "${TARGET_ROOTFS}/etc/conf.d/bootmisc" 2>/dev/null || true
+
+# pam_lastlog 需要 /var/log/btmp，否则每次 SSH 登录都会报 unable to open
+touch "${TARGET_ROOTFS}/var/log/btmp"
+chmod 600 "${TARGET_ROOTFS}/var/log/btmp"
 
 # Gentoo 的 nftables init 默认读取 /var/lib/nftables/rules-save；
 # 本项目统一使用 /etc/nftables.nft（内含 /etc/nftables.d/*.nft）。

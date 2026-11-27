@@ -133,6 +133,9 @@ table inet filter {
         iifname @vpn_interfaces tcp dport $SSH_PORT ct state new limit rate 60/minute burst 30 packets accept;
         iifname @wan_interfaces ip saddr @wan_mgmt_nets tcp dport $SSH_PORT ct state new limit rate 30/minute burst 20 packets accept;
 
+        # ---------------- sing-box Dashboard API (仅 LAN) ----
+        iifname @lan_interfaces tcp dport $API_PORT ct state new accept;
+
         # ----------------  DHCP  -----------------------------
         iifname @lan_interfaces udp dport { 67, 68 } accept;
 
