@@ -205,12 +205,33 @@ check_rootfs() {
 
     # 7.4 日志与关键配置
     # busybox syslogd 的 -s 只接受纯数字（单位 KB），"-s 1M" 会让它启动失败
-    if grep -q 'SYSLOGD_OPTS=.*-O /run/messages' "${TARGET_ROOTFS}/etc/conf.d/syslog" 2>/dev/null && \
+    if grep -q 'SYSLOGD_OPTS=.*-O /var/log/messages' "${TARGET_ROOTFS}/etc/conf.d/syslog" 2>/dev/null && \
        grep -qE 'SYSLOGD_OPTS=.*-s [0-9]+([[:space:]]|")' "${TARGET_ROOTFS}/etc/conf.d/syslog" 2>/dev/null && \
        grep -q '/etc/conf.d/syslog' "${TARGET_ROOTFS}/etc/init.d/syslog" 2>/dev/null; then
-        echo "  ✓ syslogd 输出到 /run/messages (tmpfs, -s 为 KB 数字)"; _OK=$((_OK + 1))
+        echo "  ✓ syslogd 输出到 /var/log/messages（持久化，-s 为 KB 数字）"; _OK=$((_OK + 1))
     else
-        echo "  ✗ syslogd 未正确输出到 /run/messages（-s 必须是 KB 数字）"; _FAIL=$((_FAIL + 1))
+        echo "  ✗ syslogd 未正确输出到 /var/log/messages（-s 必须是 KB 数字）"; _FAIL=$((_FAIL + 1))
+    fi
+    # WAN 拿不到 DHCP 时不能把 LAN 一起拖死
+    if grep -q 'udhcpc_.*=-b' "${TARGET_ROOTFS}/etc/conf.d/net" 2>/dev/null; then
+        echo "  ✓ udhcpc -b（无 lease 后台重试，net.eth0 不失败）"; _OK=$((_OK + 1))
+    else
+        echo "  ✗ udhcpc 未启用 -b，WAN 无 DHCP 时 net.eth0 会失败"; _FAIL=$((_FAIL + 1))
+    fi
+    if grep -q 'need localmount net\.' "${TARGET_ROOTFS}/etc/init.d/dnsmasq" 2>/dev/null; then
+        echo "  ✓ dnsmasq 只依赖 LAN 接口（不再 need net）"; _OK=$((_OK + 1))
+    else
+        echo "  ✗ dnsmasq 仍 need net（WAN 故障会拖死 LAN DHCP/DNS）"; _FAIL=$((_FAIL + 1))
+    fi
+    if grep -q '^previous_dmesg=yes' "${TARGET_ROOTFS}/etc/conf.d/bootmisc" 2>/dev/null; then
+        echo "  ✓ bootmisc 保留上次启动 dmesg"; _OK=$((_OK + 1))
+    else
+        echo "  ✗ bootmisc 未保留上次启动 dmesg"; _FAIL=$((_FAIL + 1))
+    fi
+    if [ -f "${TARGET_ROOTFS}/var/log/btmp" ]; then
+        echo "  ✓ /var/log/btmp 存在（pam_lastlog）"; _OK=$((_OK + 1))
+    else
+        echo "  ✗ /var/log/btmp 缺失（SSH 登录会报 pam_lastlog 错误）"; _FAIL=$((_FAIL + 1))
     fi
     if grep -vE '^[[:space:]]*#' "${TARGET_ROOTFS}/etc/init.d/crond" 2>/dev/null | grep -q '/var/log/crond.log'; then
         echo "  ✗ crond 仍写 /var/log/crond.log"; _FAIL=$((_FAIL + 1))

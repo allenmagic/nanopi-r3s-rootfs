@@ -8,7 +8,8 @@ command_args="daemon-start"
 pidfile="/var/run/network-watchdog.pid"
 
 depend() {
-    need net
-    after nftables dnsmasq
+    # 不能 need net：WAN 拿不到 DHCP 时 net 虚拟服务会失败，看门狗反而起不来
+    need localmount
+    after net.lo nftables dnsmasq
     use logger
 }
