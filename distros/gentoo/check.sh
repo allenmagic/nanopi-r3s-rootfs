@@ -213,7 +213,7 @@ check_rootfs() {
         echo "  ✗ syslogd 未正确输出到 /var/log/messages（-s 必须是 KB 数字）"; _FAIL=$((_FAIL + 1))
     fi
     # WAN 拿不到 DHCP 时不能把 LAN 一起拖死
-    if grep -q 'udhcpc_.*=-b' "${TARGET_ROOTFS}/etc/conf.d/net" 2>/dev/null; then
+    if grep -q 'udhcpc_.*="-b' "${TARGET_ROOTFS}/etc/conf.d/net" 2>/dev/null; then
         echo "  ✓ udhcpc -b（无 lease 后台重试，net.eth0 不失败）"; _OK=$((_OK + 1))
     else
         echo "  ✗ udhcpc 未启用 -b，WAN 无 DHCP 时 net.eth0 会失败"; _FAIL=$((_FAIL + 1))
